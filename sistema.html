@@ -1,0 +1,1224 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Sistema Maquila — Pedidos + Cortes</title>
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+<style>
+  :root{
+    --azul:#1e3a5f; --azul2:#2d5a8c; --acento:#e8703a; --bg:#f4f6f9;
+    --nino:#3b82f6; --adulto:#10b981; --gris:#64748b;
+    --rojo:#dc2626; --borde:#e2e8f0;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;font-family:'Segoe UI',Arial,sans-serif;background:var(--bg);color:#1f2937}
+  header{background:linear-gradient(135deg,var(--azul),var(--azul2));color:#fff;padding:16px 22px;
+    box-shadow:0 2px 10px rgba(0,0,0,.15);position:sticky;top:46px;z-index:50}
+  header h1{margin:0;font-size:20px;display:flex;align-items:center;gap:10px}
+  header h1 small{font-weight:400;opacity:.85;font-size:13px}
+  .toolbar{display:flex;flex-wrap:wrap;gap:8px;margin-top:12px;align-items:center}
+  .btn{border:0;border-radius:8px;padding:9px 14px;font-size:13px;font-weight:600;cursor:pointer;
+    color:#fff;background:rgba(255,255,255,.15);transition:.15s;display:inline-flex;align-items:center;gap:6px}
+  .btn:hover{background:rgba(255,255,255,.28)}
+  .btn.primary{background:var(--acento)}
+  .btn.primary:hover{filter:brightness(1.08)}
+  .btn.ghost{background:#fff;color:var(--azul)}
+  .btn.dirty{background:var(--acento)!important;color:#fff!important;animation:pulse 1.4s infinite}
+  @keyframes pulse{0%,100%{box-shadow:0 0 0 0 rgba(232,112,58,.6)}50%{box-shadow:0 0 0 7px rgba(232,112,58,0)}}
+  .search{flex:1;min-width:160px;border:0;border-radius:8px;padding:9px 12px;font-size:14px}
+  .stats{display:flex;gap:18px;margin-left:auto;font-size:13px;flex-wrap:wrap}
+  .stats b{font-size:17px;display:block}
+  .wrap{max-width:1400px;margin:0 auto;padding:22px}
+  .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(340px,1fr));gap:18px}
+  .card{background:#fff;border-radius:14px;box-shadow:0 2px 8px rgba(0,0,0,.08);overflow:hidden;
+    display:flex;flex-direction:column;border:1px solid var(--borde);break-inside:avoid}
+  .card-top{display:flex;gap:12px;padding:14px;border-bottom:1px solid var(--borde)}
+  .photos{flex:0 0 96px;display:flex;flex-direction:column;gap:6px}
+  .photo{width:96px;height:72px;border-radius:10px;background:#eef2f7;
+    border:2px dashed #cbd5e1;display:flex;align-items:center;justify-content:center;
+    cursor:pointer;overflow:hidden;position:relative;text-align:center;color:#94a3b8;font-size:10px}
+  .photo img{width:100%;height:100%;object-fit:cover}
+  .photo .rm{position:absolute;top:2px;right:2px;background:rgba(0,0,0,.55);color:#fff;border:0;
+    border-radius:50%;width:20px;height:20px;cursor:pointer;font-size:12px;line-height:1;display:none}
+  .photo:hover .rm{display:block}
+  .photo .adj{position:absolute;top:2px;left:2px;background:rgba(0,0,0,.55);color:#fff;border:0;
+    border-radius:50%;width:20px;height:20px;cursor:pointer;font-size:11px;line-height:1;display:none}
+  .photo:hover .adj{display:block}
+  .head-info{flex:1;min-width:0}
+  .details{padding:8px 14px;border-bottom:1px solid var(--borde);background:#fcfdfe}
+  .frow{display:flex;align-items:center;gap:8px;margin-bottom:6px}
+  .frow label{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.4px;
+    color:var(--gris);flex:0 0 78px}
+  .frow input.txt{flex:1;border:1px solid var(--borde);border-radius:6px;padding:5px 8px;
+    font-size:13px;font-family:inherit;background:#fff;min-width:0}
+  .frow input.txt:focus{outline:1px solid var(--azul2)}
+  .toggle{display:flex;gap:4px}
+  .toggle button{border:1px solid var(--borde);background:#fff;color:var(--gris);border-radius:6px;
+    padding:4px 12px;font-size:12px;font-weight:600;cursor:pointer;font-family:inherit}
+  .toggle button.on-si{background:var(--adulto);color:#fff;border-color:var(--adulto)}
+  .toggle button.on-no{background:var(--gris);color:#fff;border-color:var(--gris)}
+  .mini{width:40px;height:40px;border-radius:7px;background:#eef2f7;border:2px dashed #cbd5e1;
+    display:flex;align-items:center;justify-content:center;cursor:pointer;overflow:hidden;
+    position:relative;text-align:center;color:#94a3b8;font-size:9px;flex:0 0 40px}
+  .mini img{width:100%;height:100%;object-fit:cover}
+  .mini .rm{position:absolute;top:0;right:0;background:rgba(0,0,0,.55);color:#fff;border:0;
+    border-radius:0 0 0 6px;width:16px;height:16px;cursor:pointer;font-size:10px;line-height:1;display:none}
+  .mini:hover .rm{display:block}
+  .mini .adj{position:absolute;top:0;left:0;background:rgba(0,0,0,.55);color:#fff;border:0;
+    border-radius:0 0 6px 0;width:16px;height:16px;cursor:pointer;font-size:9px;line-height:1;display:none}
+  .mini:hover .adj{display:block}
+  /* ---- Editor de imagen ---- */
+  .ed-bg{display:none;position:fixed;inset:0;background:rgba(15,23,42,.75);z-index:200;
+    align-items:center;justify-content:center;padding:16px}
+  .ed-box{background:#fff;border-radius:14px;padding:16px;max-width:95vw;box-shadow:0 10px 40px rgba(0,0,0,.4)}
+  .ed-box h3{margin:0 0 4px;color:var(--azul);font-size:16px}
+  .ed-box p{margin:0 0 10px;color:var(--gris);font-size:12px}
+  .ed-view{margin:0 auto;border-radius:10px;overflow:hidden;background:#0f172a;
+    position:relative;cursor:grab;touch-action:none;border:2px solid var(--azul)}
+  .ed-view.grabbing{cursor:grabbing}
+  .ed-view img{display:block}
+  .ed-sliders{margin:12px 0 6px}
+  .ed-srow{display:flex;align-items:center;gap:10px;margin:8px 0}
+  .ed-srow span{font-size:18px;width:24px;text-align:center;flex:0 0 24px;color:var(--azul)}
+  .ed-srow input[type=range]{flex:1;height:26px;cursor:pointer;accent-color:var(--acento)}
+  .ed-ctrls{display:flex;flex-wrap:wrap;gap:6px;justify-content:center;margin:6px 0 12px}
+  .ed-ctrls button{border:1px solid var(--borde);background:#f8fafc;border-radius:8px;
+    padding:8px 12px;font-size:14px;font-weight:600;cursor:pointer;font-family:inherit;color:#1f2937}
+  .ed-ctrls button:hover{background:#eef2f7}
+  .ed-actions{display:flex;gap:8px;justify-content:flex-end}
+  .ed-actions button{border:0;border-radius:8px;padding:10px 18px;font-size:14px;font-weight:700;
+    cursor:pointer;font-family:inherit;background:#e2e8f0;color:#1f2937}
+  .ed-actions button.primary{background:var(--acento);color:#fff}
+  .trash-row{display:flex;align-items:center;gap:8px;padding:8px 10px;border-bottom:1px solid var(--borde)}
+  .trash-row:last-child{border-bottom:0}
+  .trash-info{flex:1;font-size:13px;min-width:0}
+  .trash-tot{color:var(--gris);font-size:12px}
+  .t-restore,.t-del{border:0;border-radius:6px;padding:6px 10px;font-size:12px;font-weight:700;
+    cursor:pointer;font-family:inherit;white-space:nowrap}
+  .t-restore{background:var(--adulto);color:#fff}
+  .t-del{background:#fee2e2;color:var(--rojo)}
+  .notas{width:100%;border:1px solid var(--borde);border-radius:6px;padding:6px 8px;font-size:13px;
+    font-family:inherit;resize:vertical;background:#fffef5;min-height:34px;margin-top:2px}
+  .notas:focus{outline:1px solid var(--acento)}
+  .no-row{display:inline-flex;align-items:center;gap:5px;background:var(--azul);
+    border-radius:20px;padding:2px 6px 2px 9px}
+  .no-row .no-lbl{color:#fff;font-weight:700;font-size:12px}
+  .no-input{width:48px;border:0;border-radius:14px;background:rgba(255,255,255,.9);
+    color:var(--azul);font-weight:700;font-size:12px;text-align:center;padding:2px 4px;font-family:inherit}
+  .no-input:focus{outline:2px solid var(--acento);background:#fff}
+  .desc{width:100%;border:1px solid var(--borde);border-radius:6px;resize:vertical;font-size:14px;
+    font-weight:600;color:#1f2937;margin-top:8px;font-family:inherit;line-height:1.3;
+    background:#fff;padding:5px 7px;min-height:34px}
+  .desc:focus{outline:2px solid var(--acento);background:#fffef5}
+  .group{padding:8px 14px}
+  .group-title{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;
+    margin:4px 0 6px;display:flex;align-items:center;gap:6px}
+  .dot{width:9px;height:9px;border-radius:50%}
+  .sizes{display:grid;grid-template-columns:repeat(8,1fr);gap:5px}
+  .sizes.adulto{grid-template-columns:repeat(5,1fr)}
+  .size{display:flex;flex-direction:column;align-items:center;background:#f8fafc;border-radius:7px;
+    padding:3px 0 2px;border:1px solid var(--borde)}
+  .size label{font-size:10px;font-weight:700;color:var(--gris)}
+  .size input{width:100%;border:0;text-align:center;font-size:14px;font-weight:600;background:transparent;
+    color:#111;padding:2px 0;font-family:inherit}
+  .size input:focus{outline:0;background:#fffbe6}
+  .size.filled{background:#eff6ff;border-color:#bfdbfe}
+  .size.alert{background:#fef2f2;border-color:#fecaca}
+  .size.alert input{color:var(--rojo);font-size:9px;font-weight:700}
+  .card-foot{margin-top:auto;display:flex;justify-content:space-between;align-items:center;
+    padding:10px 14px;background:#f8fafc;border-top:1px solid var(--borde)}
+  .total{font-size:13px;color:var(--gris)}
+  .total b{font-size:20px;color:var(--azul);margin-left:4px}
+  .del{background:none;border:0;color:#cbd5e1;cursor:pointer;font-size:12px}
+  .del:hover{color:var(--rojo)}
+  .psel{display:inline-flex;align-items:center;gap:5px;font-size:12px;font-weight:600;
+    color:var(--azul);cursor:pointer;user-select:none}
+  .psel input{width:16px;height:16px;cursor:pointer;accent-color:var(--acento)}
+  .card.sel{outline:3px solid var(--acento);outline-offset:-3px}
+  .empty{text-align:center;padding:60px;color:#94a3b8}
+  .toast{position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:#1f2937;color:#fff;
+    padding:12px 20px;border-radius:10px;font-size:14px;box-shadow:0 6px 20px rgba(0,0,0,.25);
+    opacity:0;transition:.3s;z-index:100;pointer-events:none}
+  .toast.show{opacity:1}
+  .print-head{display:none}
+  /* ---- Pestañas Pedidos / Cortes ---- */
+  .tabs{display:flex;background:linear-gradient(180deg,#0f1f33,var(--azul));
+    padding:8px 10px 0;gap:5px;position:sticky;top:0;z-index:60;align-items:flex-end}
+  .tab-btn{background:rgba(255,255,255,.10);color:#cbd5e1;border:0;padding:10px 20px;
+    font-size:14px;font-weight:700;border-radius:10px 10px 0 0;cursor:pointer;
+    font-family:inherit;display:inline-flex;align-items:center;gap:6px}
+  .tab-btn:hover{background:rgba(255,255,255,.20);color:#fff}
+  .tab-btn.active{background:var(--bg);color:var(--azul);box-shadow:0 -2px 6px rgba(0,0,0,.2)}
+  .view{display:none}
+  .view.active{display:block}
+  /* ---- Vista Cortes — encabezado + formulario + toolbar (igual al original) ---- */
+  #view-cortes{--ct-bg:#f4f1ea;--ct-panel:#fff;--ct-ink:#2b2b2b;--ct-muted:#7a7468;
+    --ct-line:#e3ddd0;--ct-accent:#b5532a;--ct-accent-soft:#f6e7df;--ct-green:#3f7a4f;background:var(--ct-bg);min-height:100vh}
+  #view-cortes .ct-hd{background:var(--ct-accent);color:#fff;padding:18px 24px;display:flex;
+    align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;position:sticky;top:46px;z-index:50}
+  #view-cortes .ct-hd h1{margin:0;font-size:22px;letter-spacing:.5px;color:#fff}
+  #view-cortes .ct-hd .sub{font-size:13px;opacity:.85;margin-top:2px}
+  .ct-btn-print{background:var(--ct-green);color:#fff;border:0;border-radius:8px;padding:9px 16px;
+    font-size:14px;font-weight:600;cursor:pointer;font-family:inherit}
+  .ct-page{max-width:1100px;margin:0 auto;padding:24px}
+  .ct-form-card{background:var(--ct-panel);border:1px solid var(--ct-line);border-radius:12px;
+    padding:20px;box-shadow:0 2px 10px rgba(0,0,0,.06);margin-bottom:24px}
+  .ct-form-card h2{margin:0 0 16px;font-size:17px;color:var(--ct-accent)}
+  .ct-grid-top{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:14px;margin-bottom:18px}
+  .ct-lbl{display:block;font-size:12px;font-weight:600;color:var(--ct-muted);margin-bottom:5px;
+    text-transform:uppercase;letter-spacing:.4px}
+  .ct-form-card input[type=text],.ct-form-card input[type=date],.ct-toolbar2 input[type=text]{
+    width:100%;padding:9px 10px;border:1px solid var(--ct-line);border-radius:8px;font-size:14px;
+    background:#fcfbf8;font-family:inherit;color:var(--ct-ink)}
+  .ct-form-card input:focus,.ct-toolbar2 input:focus{outline:none;border-color:var(--ct-accent)}
+  .ct-foto-field{display:flex;align-items:center;gap:14px;flex-wrap:wrap;margin-bottom:18px}
+  .ct-foto-prev{width:90px;height:90px;border:2px dashed var(--ct-line);border-radius:10px;
+    display:flex;align-items:center;justify-content:center;overflow:hidden;color:var(--ct-muted);
+    font-size:11px;text-align:center;background:#fbf8f2;flex:none}
+  .ct-foto-prev img{width:100%;height:100%;object-fit:cover}
+  .ct-file-btn{display:inline-block;background:#fff;border:1px solid var(--ct-line);border-radius:8px;
+    padding:9px 14px;cursor:pointer;font-size:14px;font-weight:600;color:var(--ct-ink);font-family:inherit}
+  .ct-file-btn:hover{background:#faf7f1}
+  .ct-sizes-block h3{font-size:13px;color:var(--ct-muted);margin:14px 0 8px;text-transform:uppercase;letter-spacing:.4px}
+  .ct-sizes-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(90px,1fr));gap:10px}
+  .ct-size-cell{background:#fbf8f2;border:1px solid var(--ct-line);border-radius:8px;padding:6px 8px;text-align:center}
+  .ct-size-cell span{display:block;font-size:12px;font-weight:700;color:var(--ct-ink);margin-bottom:4px}
+  .ct-size-cell input{width:100%;border:none;background:transparent;text-align:center;font-size:16px;
+    font-weight:600;padding:2px 0;font-family:inherit;color:var(--ct-ink)}
+  .ct-size-cell input:focus{outline:none}
+  .ct-actions{display:flex;gap:10px;margin-top:18px;flex-wrap:wrap}
+  .ct-btn-primary,.ct-btn-ghost{font-family:inherit;font-size:14px;font-weight:600;border:none;
+    border-radius:8px;padding:10px 18px;cursor:pointer;transition:filter .15s}
+  .ct-btn-primary{background:var(--ct-accent);color:#fff}
+  .ct-btn-primary:hover{filter:brightness(.95)}
+  .ct-btn-ghost{background:#fff;color:var(--ct-ink);border:1px solid var(--ct-line)}
+  .ct-btn-sm{padding:9px 12px;margin-left:6px}
+  .ct-toolbar2{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;margin-bottom:16px}
+  .ct-toolbar2 .left{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+  .ct-toolbar2 #ctSearch{min-width:220px;background:#fff}
+  .ct-count{font-size:13px;color:var(--ct-muted)}
+  .ct-btn-edit,.ct-btn-del{background:#fff;border:1px solid var(--ct-line);font-family:inherit;
+    font-weight:600;font-size:13px;border-radius:6px;padding:6px 12px;cursor:pointer}
+  .ct-btn-del{border-color:#e3b3a3;color:var(--ct-accent)}
+  /* ---- Vista Cortes (hoja carta por corte) ---- */
+  .ct-toolbar{background:#fff;border-bottom:1px solid var(--borde);padding:10px 22px;
+    display:flex;flex-wrap:wrap;gap:8px;align-items:center;position:sticky;top:46px;z-index:55}
+  .ct-toolbar .info{color:var(--gris);font-size:13px;margin-left:auto}
+  .ct-wrap{max-width:1100px;margin:0 auto;padding:18px;display:flex;flex-direction:column;
+    align-items:center;gap:24px}
+  .corte{background:#fff;width:21.59cm;min-height:27.94cm;padding:1.2cm;
+    box-shadow:0 4px 18px rgba(0,0,0,.12);display:flex;flex-direction:column;
+    position:relative;overflow:hidden;border-radius:6px}
+  .corte::before{content:"";position:absolute;top:43%;left:50%;
+    transform:translate(-50%,-50%);width:17cm;height:20cm;
+    background-image:var(--foto,none);background-repeat:no-repeat;
+    background-position:center;background-size:cover;filter:blur(4px);opacity:.42;
+    z-index:0;pointer-events:none}
+  .corte > *{position:relative;z-index:1}
+  .ct-head{display:flex;justify-content:space-between;align-items:flex-start;
+    border-bottom:3px solid var(--acento);padding-bottom:12px;margin-bottom:18px}
+  .ct-head .ttl small{display:block;font-size:11px;letter-spacing:2px;color:var(--gris);
+    text-transform:uppercase}
+  .ct-head .ttl h2{margin:2px 0 0;font-size:28px;color:var(--acento);line-height:1.05}
+  .ct-head .folio{font-size:12px;color:var(--gris);text-align:right;min-width:180px}
+  .ct-head .folio b{font-size:14px;color:#1f2937}
+  .ct-mid{margin-bottom:14px;display:grid;grid-template-columns:1fr 1fr;gap:0 30px}
+  .ct-dato{margin-bottom:12px}
+  .ct-dato label{display:block;font-size:11px;letter-spacing:1px;color:var(--gris);
+    text-transform:uppercase;margin-bottom:3px;font-weight:700}
+  .ct-dato input{width:100%;border:0;border-bottom:1px solid var(--borde);
+    padding:4px 2px;font-size:16px;font-weight:600;font-family:inherit;background:transparent}
+  .ct-dato input:focus{outline:0;border-bottom-color:var(--acento);background:#fffef5}
+  .ct-grp{font-size:13px;font-weight:700;color:var(--acento);text-transform:uppercase;
+    letter-spacing:.5px;margin:14px 0 6px}
+  .ct-tabla{width:100%;border-collapse:collapse;font-size:15px;margin-bottom:10px}
+  .ct-tabla th,.ct-tabla td{border:1px solid #c9c2b4;padding:6px 4px;text-align:center}
+  .ct-tabla th{background:#faf7f1;color:var(--gris);font-size:12px;text-transform:uppercase}
+  .ct-tabla input{width:100%;border:none;background:#fffdf8;text-align:center;
+    font-size:18px;font-weight:700;color:#1f2937;padding:4px 0;font-family:inherit}
+  .ct-tabla input:focus{outline:2px solid var(--acento);background:#fff}
+  .ct-total{margin-top:auto;display:flex;justify-content:space-between;align-items:center;
+    background:#f6e7df;border-radius:10px;padding:12px 18px;font-weight:700;font-size:17px}
+  .ct-total .n{font-size:28px;color:#3f7a4f}
+  .ct-foot{display:flex;gap:8px;justify-content:flex-end;margin-top:12px}
+  .ct-foot button{padding:6px 12px;font-size:12px;border:1px solid var(--borde);
+    background:#fff;border-radius:6px;cursor:pointer;font-family:inherit;font-weight:600}
+  .ct-vencido{border-left:8px solid #c0392b}
+  .ct-vencido-txt{color:#c0392b!important}
+  .ct-badge{display:inline-block;margin-top:4px;background:#c0392b;color:#fff;font-size:11px;
+    font-weight:700;letter-spacing:.5px;padding:3px 9px;border-radius:6px}
+  @media print{
+    header,.del,.photo .rm,.mini .rm,.photo .adj,.mini .adj,.no-print{display:none!important}
+    body{background:#fff}
+    .wrap{padding:0;max-width:none}
+    .grid{grid-template-columns:repeat(2,1fr);gap:10px}
+    .card{box-shadow:none;border:1px solid #999;page-break-inside:avoid}
+    .print-head{display:block;text-align:center;padding:10px;border-bottom:2px solid var(--azul);margin-bottom:10px}
+    .print-head h2{margin:0;color:var(--azul)}
+    .size input{border:none}
+    .details{background:#fff}
+    .frow input.txt{border:none}
+    .hide-print{display:none!important}
+    .card.sel{outline:none}
+    .tabs,.ct-toolbar,.ct-foot{display:none!important}
+    .ct-wrap{padding:0;gap:0}
+    .corte{box-shadow:none;page-break-after:always;break-after:page;border-radius:0}
+    .corte:last-child{page-break-after:auto}
+    .corte::before,.ct-head{-webkit-print-color-adjust:exact;print-color-adjust:exact}
+    @page{margin:1cm}
+  }
+</style>
+</head>
+<body>
+<nav class="tabs no-print">
+  <button class="tab-btn active" id="tab-p" onclick="showView('pedidos')">🧵 Pedidos (Tarjetas)</button>
+  <button class="tab-btn" id="tab-c" onclick="showView('cortes')">✂️ Cortes (Hojas)</button>
+</nav>
+
+<section id="view-pedidos" class="view active">
+<header class="no-print">
+  <h1>🧵 Pedidos de Uniformes <small>Tarjetas visuales · editables · imprimibles</small></h1>
+  <div class="toolbar">
+    <input id="search" class="search" placeholder="🔍 Buscar prenda por número o descripción...">
+    <button class="btn primary" onclick="addCard()">＋ Agregar prenda</button>
+    <button class="btn ghost" id="btnPrint" onclick="doPrint()">🖨️ Imprimir / PDF (todas)</button>
+    <button class="btn" onclick="toggleAllPrint()">☑️ Marcar / Quitar todas</button>
+    <button class="btn" id="btnTrash" onclick="openTrash()">🗑 Papelera (0)</button>
+    <button class="btn" onclick="exportXlsx()">⬇️ Exportar Excel</button>
+    <button class="btn" onclick="downloadTemplate()">📋 Plantilla Excel</button>
+    <button class="btn primary" onclick="triggerImport('append')">➕ Agregar desde Excel</button>
+    <button class="btn" onclick="triggerImport('replace')">⬆️ Reemplazar con Excel</button>
+    <button class="btn ghost" id="btnBackup" onclick="backup()">💾 Guardar respaldo</button>
+    <button class="btn ghost" onclick="triggerRestore()">📂 Cargar respaldo</button>
+    <input type="file" id="imp" accept=".xlsx,.xls" style="display:none" onchange="importXlsx(event)">
+    <input type="file" id="rst" accept=".json" style="display:none" onchange="restore(event)">
+    <div class="stats">
+      <span>Prendas<b id="stCount">0</b></span>
+      <span>Piezas totales<b id="stTotal">0</b></span>
+    </div>
+  </div>
+</header>
+
+<div class="wrap">
+  <div class="print-head">
+    <h2>Pedido de Uniformes</h2>
+    <div id="printDate"></div>
+  </div>
+  <div id="grid" class="grid"></div>
+  <div id="empty" class="empty" style="display:none">No hay prendas. Pulsa “＋ Agregar prenda” o importa un Excel.</div>
+</div>
+</section>
+
+<section id="view-cortes" class="view">
+  <header class="ct-hd no-print">
+    <div>
+      <h1>✂️ Control de Cortes</h1>
+      <div class="sub">Una hoja carta por corte · listo para imprimir</div>
+    </div>
+    <button class="ct-btn-print no-print" onclick="window.print()">🖨️ Imprimir todas</button>
+  </header>
+
+  <div class="ct-page">
+    <!-- FORMULARIO -->
+    <div class="ct-form-card no-print">
+      <h2 id="ctFormTitle">Nuevo corte</h2>
+      <input type="hidden" id="ctEditId">
+      <input type="hidden" id="ctFotoData">
+
+      <div class="ct-foto-field">
+        <div class="ct-foto-prev" id="ctFotoPrev">Sin foto</div>
+        <div>
+          <label class="ct-lbl">Foto del modelo</label>
+          <label class="ct-file-btn">📷 Elegir foto
+            <input type="file" id="ctFotoInput" accept="image/*" style="display:none" onchange="ctCargarFoto(event)">
+          </label>
+          <button type="button" class="ct-btn-ghost ct-btn-sm" onclick="ctQuitarFoto()">Quitar</button>
+        </div>
+      </div>
+
+      <div class="ct-grid-top">
+        <div><label class="ct-lbl">Cliente</label><input type="text" id="ctCliente" placeholder="Ej: Señora Ludovina Taller"></div>
+        <div><label class="ct-lbl">Número de pedido</label><input type="text" id="ctPedido" placeholder="Ej: 5"></div>
+        <div><label class="ct-lbl">Especificación</label><input type="text" id="ctEspec" placeholder="Ej: Uniforme escolar / Playera polo"></div>
+        <div><label class="ct-lbl">Modelo / referencia</label><input type="text" id="ctModelo" placeholder="Ej: Playera básica"></div>
+        <div><label class="ct-lbl">Tipo de tela</label><input type="text" id="ctTela" placeholder="Ej: Algodón jersey"></div>
+        <div><label class="ct-lbl">Color</label><input type="text" id="ctColor" placeholder="Ej: Azul marino"></div>
+        <div><label class="ct-lbl">Maquilador (quién lo cose)</label><input type="text" id="ctMaq" placeholder="Ej: Taller de Doña Rosa"></div>
+        <div><label class="ct-lbl">Fecha entrega (cortador)</label><input type="date" id="ctFecha"></div>
+        <div><label class="ct-lbl">Fecha contraentrega (maquilero)</label><input type="date" id="ctContra"></div>
+      </div>
+
+      <div class="ct-sizes-block">
+        <h3>Cantidades por talla — Números</h3>
+        <div class="ct-sizes-grid" id="ctGridNum"></div>
+        <h3>Cantidades por talla — Letras</h3>
+        <div class="ct-sizes-grid" id="ctGridLet"></div>
+      </div>
+
+      <div class="ct-actions">
+        <button class="ct-btn-primary" onclick="ctGuardar()">💾 Guardar corte</button>
+        <button class="ct-btn-ghost" onclick="ctLimpiar()">Limpiar</button>
+      </div>
+    </div>
+
+    <!-- TOOLBAR -->
+    <div class="ct-toolbar2 no-print">
+      <div class="left">
+        <input type="text" id="ctSearch" placeholder="Buscar por modelo, tela o color..." oninput="ctRender()">
+        <span class="ct-count" id="ctCount"></span>
+      </div>
+      <div class="left">
+        <label class="ct-file-btn">📊 Importar Excel
+          <input type="file" id="ctExcelInput" accept=".xlsx,.xls,.csv" style="display:none" onchange="ctImportarExcel(event)">
+        </label>
+        <button class="ct-btn-ghost" onclick="ctDescargarPlantilla()">📄 Plantilla</button>
+        <button class="ct-btn-ghost" onclick="ctExportarJSON()">💾 Exportar respaldo cortes</button>
+        <label class="ct-file-btn">📥 Importar respaldo cortes
+          <input type="file" id="ctJsonInput" accept=".json" style="display:none" onchange="ctImportarJSON(event)">
+        </label>
+      </div>
+    </div>
+
+    <!-- TARJETAS HOJA CARTA -->
+    <div id="ct-list" class="ct-wrap"></div>
+  </div>
+</section>
+
+<div id="editor" class="ed-bg">
+  <div class="ed-box">
+    <h3>Ajustar foto</h3>
+    <p>Arrastra la imagen para moverla · usa los botones para acercar o girar</p>
+    <div class="ed-view" id="edView"><img id="edImg"></div>
+    <div class="ed-sliders">
+      <div class="ed-srow"><span>🔎</span>
+        <input type="range" id="edZoomR" min="1" max="4" step="0.02" oninput="ed.p.scale=+this.value;edApply()">
+        <span>🔍</span></div>
+      <div class="ed-srow"><span>←</span>
+        <input type="range" id="edPosX" min="0" max="100" step="1" oninput="ed.p.posX=+this.value;edApply()">
+        <span>→</span></div>
+      <div class="ed-srow"><span>↑</span>
+        <input type="range" id="edPosY" min="0" max="100" step="1" oninput="ed.p.posY=+this.value;edApply()">
+        <span>↓</span></div>
+    </div>
+    <div class="ed-ctrls">
+      <button onclick="edRotate()">↻ Girar</button>
+      <button onclick="edReset()">⟲ Reiniciar</button>
+    </div>
+    <div class="ed-actions">
+      <button onclick="edCancel()">Cancelar</button>
+      <button class="primary" onclick="edAccept()">✓ Aceptar</button>
+    </div>
+  </div>
+</div>
+
+<div id="trashModal" class="ed-bg">
+  <div class="ed-box" style="width:540px;max-width:95vw">
+    <h3>🗑 Papelera</h3>
+    <p>Prendas que mandaste a la basura. Puedes restaurarlas o borrarlas para siempre.</p>
+    <div id="trashList" style="max-height:50vh;overflow:auto;border:1px solid var(--borde);border-radius:8px"></div>
+    <div class="ed-actions">
+      <button onclick="emptyTrash()">Vaciar papelera</button>
+      <button class="primary" onclick="closeTrash()">Cerrar</button>
+    </div>
+  </div>
+</div>
+
+<div id="toast" class="toast"></div>
+
+<script>
+const NINO=['2','4','6','8','10','12','14','16'];
+const ADULTO=['CH','M','G','XL','2XL'];
+const ALL=[...NINO,...ADULTO];
+
+const SEED = [{"no": "1", "desc": "Pantalonera roja Potros", "sizes": {"2": "", "4": "", "6": "", "8": "", "10": "", "12": "", "14": "", "16": 20, "CH": 35, "M": 15, "G": 10, "XL": 10, "2XL": 10}}, {"no": "2", "desc": "Playera Cuello Polo oficial CEBETA cuello Gris rojo", "sizes": {"2": "", "4": "", "6": "", "8": "", "10": "", "12": 10, "14": 15, "16": 20, "CH": 25, "M": 20, "G": 10, "XL": 10, "2XL": 6}}, {"no": "3", "desc": "Playera Cuello redondo deportiva CEBETA Potros.", "sizes": {"2": "", "4": "", "6": "", "8": "", "10": "", "12": "", "14": 20, "16": 25, "CH": 30, "M": 15, "G": 10, "XL": 8, "2XL": 6}}, {"no": "4", "desc": "Playera Deportiva coyotes cuello V azul turquesa", "sizes": {"2": "", "4": "", "6": "", "8": "", "10": "", "12": 20, "14": 25, "16": 20, "CH": 20, "M": 15, "G": 10, "XL": 10, "2XL": ""}}, {"no": "5", "desc": "Playera oficial turqueza Pancho Villa", "sizes": {"2": "", "4": "", "6": "", "8": "", "10": "", "12": 25, "14": 30, "16": 10, "CH": 10, "M": "", "G": "", "XL": "", "2XL": ""}}, {"no": "6", "desc": "Pantalonera azul marino con azul turqueza tigres Genaro Hermosillo", "sizes": {"2": "", "4": "", "6": "", "8": "", "10": "", "12": 10, "14": 30, "16": 30, "CH": 25, "M": 20, "G": 10, "XL": 10, "2XL": 3}}, {"no": "7", "desc": "Playera cuello V tigres Genaro Hermosillo azul marino", "sizes": {"2": "", "4": "", "6": "", "8": "", "10": "", "12": 15, "14": 30, "16": 30, "CH": 25, "M": 15, "G": 10, "XL": "", "2XL": ""}}, {"no": "8", "desc": "Playera azul marino Genaro Hermosillo tigres cuello polo Gris", "sizes": {"2": "", "4": "", "6": "", "8": "", "10": "", "12": 10, "14": 25, "16": 25, "CH": 25, "M": 15, "G": 10, "XL": "", "2XL": ""}}, {"no": "9", "desc": "Playera Deportiva blanca con negro cuello redondo Pumas", "sizes": {"2": "", "4": "", "6": "", "8": "", "10": "", "12": 10, "14": 25, "16": 25, "CH": 25, "M": 10, "G": "", "XL": "", "2XL": ""}}, {"no": "10", "desc": "Playera blanca cuello negro Pumas cuello polo.", "sizes": {"2": "", "4": "", "6": "", "8": "", "10": "", "12": 10, "14": 20, "16": 20, "CH": 10, "M": 10, "G": 10, "XL": "", "2XL": ""}}, {"no": "11", "desc": "Pantalonera negra pumas", "sizes": {"2": "", "4": "", "6": "", "8": "", "10": "", "12": 15, "14": 20, "16": 20, "CH": 10, "M": 10, "G": 10, "XL": "", "2XL": ""}}, {"no": "12", "desc": "Pantalonera Gris verde CECYTEch.", "sizes": {"2": "", "4": "", "6": "", "8": "", "10": "", "12": "", "14": 10, "16": 20, "CH": 15, "M": 15, "G": 10, "XL": 10, "2XL": 10}}, {"no": "13", "desc": "Playera blanca Cuello verde logotipo CECYTEch", "sizes": {"2": "", "4": "", "6": "", "8": "", "10": "", "12": 10, "14": 15, "16": 25, "CH": 15, "M": 15, "G": 10, "XL": 10, "2XL": 6}}, {"no": "14", "desc": "Pantalonera azul marino a traz amarillo blanco", "sizes": {"2": "", "4": "", "6": "", "8": "", "10": "", "12": "", "14": "", "16": "", "CH": 15, "M": 25, "G": 10, "XL": 10, "2XL": 8}}, {"no": "15", "desc": "Playera oficial Gris prepa 8412 cuello", "sizes": {"2": "", "4": "", "6": "", "8": "", "10": "", "12": 10, "14": 30, "16": 15, "CH": 20, "M": 10, "G": "", "XL": "", "2XL": ""}}, {"no": "15B", "desc": "Playera Oficial gris Prepa 8412, cuello", "sizes": {"2": "", "4": "", "6": "", "8": "", "10": "", "12": 10, "14": 20, "16": 15, "CH": 20, "M": 10, "G": "", "XL": "", "2XL": ""}}, {"no": "16", "desc": "PANTALONERA Azul marino, gris, amarillo, negra 2145", "sizes": {"2": "", "4": "", "6": "", "8": 40, "10": 40, "12": 40, "14": 25, "16": 20, "CH": 10, "M": 5, "G": "", "XL": "", "2XL": ""}}, {"no": "17", "desc": "PANTALONERA Azul marino con franja azul cielo", "sizes": {"2": "", "4": "", "6": 15, "8": 40, "10": 40, "12": 20, "14": 15, "16": 10, "CH": 5, "M": "", "G": "", "XL": "", "2XL": ""}}, {"no": "18", "desc": "PLAYERA Azul cielo, cuello azul marino con azul cielo, logotipo Juan Gutiérrez de la Cueva", "sizes": {"2": "", "4": "", "6": 20, "8": 40, "10": 40, "12": 30, "14": 15, "16": 10, "CH": 5, "M": 3, "G": "", "XL": "", "2XL": ""}}, {"no": "19", "desc": "PLAYERA Azul rey, cuello gris, Tomás Gameros, 2131", "sizes": {"2": "", "4": "", "6": 10, "8": 30, "10": 20, "12": 30, "14": 15, "16": 10, "CH": 6, "M": "", "G": "", "XL": "", "2XL": ""}}, {"no": "20", "desc": "PANTALONERA Gris con azul rey, Tomás Gameros", "sizes": {"2": "", "4": "", "6": 15, "8": 35, "10": 35, "12": 20, "14": 10, "16": 10, "CH": "", "M": "", "G": "", "XL": "", "2XL": ""}}, {"no": "21", "desc": "PANTALONERA Azul marino, 1 franja blanca y 1 roja", "sizes": {"2": 15, "4": 20, "6": 40, "8": 35, "10": 30, "12": 20, "14": 10, "16": 10, "CH": 6, "M": 4, "G": "", "XL": "", "2XL": ""}}, {"no": "22", "desc": "Playera cuello V, logotipo Panteras, blanca cuello azul marino", "sizes": {"2": "", "4": "", "6": 10, "8": 15, "10": 15, "12": 15, "14": 10, "16": 10, "CH": 5, "M": "", "G": "", "XL": "", "2XL": ""}}, {"no": "23", "desc": "Playera blanca cuello polo azul marino, logotipo Miguel Hgo.", "sizes": {"2": "", "4": "", "6": "", "8": 20, "10": 20, "12": 20, "14": 15, "16": "", "CH": 5, "M": "", "G": "", "XL": "", "2XL": ""}}, {"no": "24", "desc": "Pantalonera verde, 2 franjas gris", "sizes": {"2": "", "4": "", "6": 10, "8": 20, "10": 15, "12": 15, "14": 6, "16": "", "CH": "", "M": "", "G": "", "XL": "", "2XL": ""}}, {"no": "25", "desc": "Playera gris verde, Rafael Molina Bentancur/Betancor", "sizes": {"2": "", "4": "", "6": 10, "8": 20, "10": 20, "12": 15, "14": 5, "16": 5, "CH": "", "M": "", "G": "", "XL": "", "2XL": ""}}, {"no": "26", "desc": "Pantalonera azul marino, blanco y turquesa", "sizes": {"2": "", "4": "", "6": 10, "8": 15, "10": 15, "12": 15, "14": 10, "16": "", "CH": "", "M": "", "G": "", "XL": "", "2XL": ""}}, {"no": "27", "desc": "Playera azul turquesa, logotipo conejos, cambiar cuello a V", "sizes": {"2": "", "4": "", "6": 10, "8": 25, "10": 15, "12": 10, "14": 10, "16": "", "CH": "", "M": "", "G": "", "XL": "", "2XL": ""}}, {"no": "28", "desc": "Playera amarilla, cuello azul marino con amarillo, boca negra", "sizes": {"2": "", "4": "", "6": 10, "8": 20, "10": 20, "12": 20, "14": 10, "16": 10, "CH": "", "M": "", "G": "", "XL": "", "2XL": ""}}, {"no": "29", "desc": "Pantalonera azul marino, amarillo y rojo", "sizes": {"2": "", "4": "", "6": 10, "8": 20, "10": 15, "12": 15, "14": 10, "16": 10, "CH": 5, "M": "", "G": "", "XL": "", "2XL": ""}}, {"no": "30", "desc": "Pantalonera azul marino 2 franjas rojas / 2 atravesadas", "sizes": {"2": "", "4": "", "6": "", "8": 20, "10": 15, "12": 15, "14": 15, "16": 5, "CH": 5, "M": "", "G": "", "XL": "", "2XL": ""}}, {"no": "31", "desc": "Playera roja logotipo Mario / arreglar rojos de la 2145 / poner logotipo sobrepuesto", "sizes": {"2": "ARREGLAR", "4": "ARREGLAR", "6": "ARREGLAR", "8": "ARREGLAR", "10": "ARREGLAR", "12": "ARREGLAR", "14": "ARREGLAR", "16": "ARREGLAR", "CH": "ARREGLAR", "M": "ARREGLAR", "G": "", "XL": "", "2XL": ""}}, {"no": "32", "desc": "Playera Kinder Jaime Nuño naranja", "sizes": {"2": 10, "4": 20, "6": 35, "8": "", "10": "", "12": "", "14": "", "16": "", "CH": "", "M": "", "G": "", "XL": "", "2XL": ""}}, {"no": "33", "desc": "Pantalonera azul marino naranja y bies amarillos", "sizes": {"2": 10, "4": 25, "6": 40, "8": 6, "10": "", "12": "", "14": "", "16": "", "CH": "", "M": "", "G": "", "XL": "", "2XL": ""}}, {"no": "34", "desc": "Pantalonera azul marino bies a los lados azul turquesa", "sizes": {"2": 10, "4": 20, "6": 35, "8": 6, "10": "", "12": "", "14": "", "16": "", "CH": "", "M": "", "G": "", "XL": "", "2XL": ""}}, {"no": "35", "desc": "Playera roja Kinder Miguel Hidalgo", "sizes": {"2": 15, "4": 30, "6": 40, "8": 5, "10": "", "12": "", "14": "", "16": "", "CH": "", "M": "", "G": "", "XL": "", "2XL": ""}}, {"no": "36", "desc": "Pantalonera azul marino con verde limón, 2 rayas atravesadas en una pierna", "sizes": {"2": 10, "4": 30, "6": 35, "8": 6, "10": "", "12": "", "14": "", "16": "", "CH": "", "M": "", "G": "", "XL": "", "2XL": ""}}, {"no": "37", "desc": "Playera verde limón Niño Artillero", "sizes": {"2": 10, "4": 15, "6": 15, "8": "", "10": "", "12": "", "14": "", "16": "", "CH": "", "M": "", "G": "", "XL": "", "2XL": ""}}, {"no": "38", "desc": "Pantalonera azul marino, 2 franjas a lo largo de las piernas verde limón", "sizes": {"2": 10, "4": 15, "6": 15, "8": "", "10": "", "12": "", "14": "", "16": "", "CH": "", "M": "", "G": "", "XL": "", "2XL": ""}}];
+
+let data=[], trash=[];
+loadAll();
+
+function loadAll(){
+  try{
+    const s = localStorage.getItem('pedidos_uniformes');
+    if(s){
+      const o = JSON.parse(s);
+      if(Array.isArray(o)){ data=normalize(o); trash=[]; }
+      else { data=normalize(o.data||[]); trash=normalize(o.trash||[]); }
+      return;
+    }
+  }catch(e){}
+  data=normalize(SEED); trash=[];
+}
+function toPhoto(v){
+  if(v && typeof v==='object')
+    return {src:v.src||'', posX:v.posX??50, posY:v.posY??50, scale:v.scale??1, rot:v.rot??0};
+  return {src:(typeof v==='string'?v:''), posX:50, posY:50, scale:1, rot:0};
+}
+function newId(){ return Date.now().toString(36)+Math.random().toString(36).slice(2,6); }
+function normalize(arr){
+  return arr.map(it=>{
+    const sizes={};
+    ALL.forEach(k=> sizes[k] = (it.sizes && it.sizes[k]!=null) ? it.sizes[k] : '');
+    let raw = Array.isArray(it.photos) ? it.photos.slice(0,2) : [];
+    if(it.photo && raw.length===0) raw=[it.photo];             // migra dato viejo de 1 foto
+    const photos=[toPhoto(raw[0]), toPhoto(raw[1])];
+    return {id:it.id||newId(), no:it.no||'', desc:it.desc||'', photos,
+      tela1:it.tela1||'', tela2:it.tela2||'', color:it.color||'',
+      bies:it.bies||'', cuello:it.cuello||'', cuelloFoto:toPhoto(it.cuelloFoto), notas:it.notas||'',
+      cliente:it.cliente||'', pedido:it.pedido||'', especificacion:it.especificacion||'',
+      maquilador:it.maquilador||'', fecha:it.fecha||'', contraentrega:it.contraentrega||'',
+      sizes};
+  });
+}
+function save(){
+  try{ localStorage.setItem('pedidos_uniformes', JSON.stringify({data, trash})); }
+  catch(e){ toast('⚠️ No se pudo guardar (memoria llena). Exporta a Excel.'); }
+  markDirty();
+}
+
+let dirty=false;
+function markDirty(){ dirty=true; updateDirtyUI(); }
+function setSaved(){ dirty=false; updateDirtyUI(); }
+function updateDirtyUI(){
+  const b=document.getElementById('btnBackup');
+  if(!b) return;
+  if(dirty){ b.classList.add('dirty'); b.textContent='💾 Guardar respaldo  ● sin guardar'; }
+  else { b.classList.remove('dirty'); b.textContent='💾 Guardar respaldo'; }
+}
+setInterval(()=>{ if(dirty) toast('🔔 Llevas cambios sin respaldar — pulsa “💾 Guardar respaldo”'); }, 180000);
+window.addEventListener('beforeunload', e=>{ if(dirty){ e.preventDefault(); e.returnValue=''; } });
+function num(v){ const n=parseFloat(v); return isNaN(n)?0:n; }
+function cardTotal(it){ return ALL.reduce((s,k)=>s+num(it.sizes[k]),0); }
+
+/* ---- Selección de tarjetas para imprimir ---- */
+const printSel=new Set();
+function togglePrint(i,on){
+  if(on) printSel.add(i); else printSel.delete(i);
+  const c=document.querySelector('.card[data-idx="'+i+'"]');
+  if(c) c.classList.toggle('sel',on);
+  updatePrintBtn();
+}
+function toggleAllPrint(){
+  if(printSel.size>=data.length) printSel.clear();
+  else data.forEach((_,i)=>printSel.add(i));
+  render();
+}
+function updatePrintBtn(){
+  const b=document.getElementById('btnPrint'); if(!b) return;
+  b.textContent = printSel.size>0 ? '🖨️ Imprimir ('+printSel.size+' sel.)' : '🖨️ Imprimir / PDF (todas)';
+}
+function doPrint(){
+  if(document.getElementById('search').value){ document.getElementById('search').value=''; render(); }
+  const usarSel = printSel.size>0;
+  document.querySelectorAll('.card').forEach(c=>{
+    if(usarSel && !printSel.has(+c.dataset.idx)) c.classList.add('hide-print');
+  });
+  window.print();
+}
+window.addEventListener('afterprint',()=>{
+  document.querySelectorAll('.hide-print').forEach(c=>c.classList.remove('hide-print'));
+});
+
+function render(){
+  const q = (document.getElementById('search').value||'').toLowerCase();
+  const grid = document.getElementById('grid');
+  grid.innerHTML='';
+  let shown=0, pieces=0;
+  data.forEach((it,i)=>{
+    pieces += cardTotal(it);
+    if(q && !((it.no+' '+it.desc).toLowerCase().includes(q))) return;
+    shown++;
+    grid.appendChild(buildCard(it,i));
+  });
+  document.getElementById('empty').style.display = data.length? 'none':'block';
+  document.getElementById('stCount').textContent = data.length;
+  document.getElementById('stTotal').textContent = pieces;
+  updatePrintBtn(); updateTrashBtn();
+  document.getElementById('printDate').textContent = new Date().toLocaleDateString('es-MX',{year:'numeric',month:'long',day:'numeric'});
+}
+
+function sizeGroup(it,i,keys,cls,color,title){
+  const cells = keys.map(k=>{
+    const v = it.sizes[k];
+    const alert = (typeof v==='string' && v && isNaN(parseFloat(v)));
+    const filled = num(v)>0;
+    return `<div class="size ${alert?'alert':(filled?'filled':'')}">
+      <label>${k}</label>
+      <input value="${v===''||v==null?'':String(v).replace(/"/g,'&quot;')}"
+        oninput="upd(${i},'${k}',this.value)" title="${k}">
+    </div>`;
+  }).join('');
+  return `<div class="group">
+    <div class="group-title"><span class="dot" style="background:${color}"></span>${title}</div>
+    <div class="sizes ${cls}">${cells}</div></div>`;
+}
+
+function imgStyle(p){
+  return `object-fit:cover;width:100%;height:100%;object-position:${p.posX}% ${p.posY}%;`+
+    `transform:rotate(${p.rot}deg) scale(${p.scale});transform-origin:center;`;
+}
+function photoSlot(it,i,slot){
+  const p=it.photos[slot];
+  const inner = p.src
+    ? `<img src="${p.src}" style="${imgStyle(p)}">
+       <button class="adj" onclick="adjustPhoto(${i},${slot})" title="Ajustar foto">✎</button>
+       <button class="rm" onclick="rmPhoto(${i},${slot})" title="Quitar foto">✕</button>`
+    : `📷 Foto ${slot+1}`;
+  return `<label class="photo">${inner}
+    <input type="file" accept="image/*" style="display:none" onchange="setPhoto(${i},${slot},event)"></label>`;
+}
+function cuelloFotoSlot(it,i){
+  const p=it.cuelloFoto;
+  const inner = p.src
+    ? `<img src="${p.src}" style="${imgStyle(p)}">
+       <button class="adj" onclick="adjustCuello(${i})" title="Ajustar foto">✎</button>
+       <button class="rm" onclick="rmCuelloFoto(${i})" title="Quitar foto">✕</button>`
+    : `📷`;
+  return `<label class="mini" title="Foto del cuello">${inner}
+    <input type="file" accept="image/*" style="display:none" onchange="setCuelloFoto(${i},event)"></label>`;
+}
+function tog(it,i,field){
+  const v=it[field];
+  return `<div class="toggle">
+    <button class="${v==='Sí'?'on-si':''}" onclick="setTog(${i},'${field}','Sí')">Sí</button>
+    <button class="${v==='No'?'on-no':''}" onclick="setTog(${i},'${field}','No')">No</button>
+  </div>`;
+}
+
+function buildCard(it,i){
+  const el=document.createElement('div');
+  el.className = 'card' + (printSel.has(i)?' sel':'');
+  el.dataset.idx=i;
+  el.innerHTML = `
+    <div class="card-top">
+      <div class="photos">${photoSlot(it,i,0)}${photoSlot(it,i,1)}</div>
+      <div class="head-info">
+        <span class="no-row"><span class="no-lbl">No.</span>
+          <input class="no-input" value="${esc(it.no)}" placeholder="#" oninput="upd(${i},'no',this.value)"></span>
+        <textarea class="desc" rows="3" placeholder="Nombre / descripción (ej: Playera escolar roja negra)"
+          oninput="upd(${i},'desc',this.value)">${it.desc||''}</textarea>
+      </div>
+    </div>
+    <div class="details">
+      <div class="frow"><label>Tela 1</label>
+        <input class="txt" value="${esc(it.tela1)}" placeholder="Ej: Sportok verde" oninput="upd(${i},'tela1',this.value)"></div>
+      <div class="frow"><label>Tela 2</label>
+        <input class="txt" value="${esc(it.tela2)}" placeholder="Ej: Piqué rojo" oninput="upd(${i},'tela2',this.value)"></div>
+      <div class="frow"><label>Color</label>
+        <input class="txt" value="${esc(it.color)}" placeholder="Ej: Azul marino / rojo" oninput="upd(${i},'color',this.value)"></div>
+      <div class="frow"><label>Bies</label>${tog(it,i,'bies')}</div>
+      <div class="frow"><label>Cuello c/letras</label>${tog(it,i,'cuello')}${cuelloFotoSlot(it,i)}</div>
+      <div class="frow" style="align-items:flex-start"><label>Notas</label>
+        <textarea class="notas" rows="1" placeholder="Ej: 3 piezas 3XL aparte..."
+          oninput="upd(${i},'notas',this.value)">${it.notas||''}</textarea></div>
+    </div>
+    ${sizeGroup(it,i,NINO,'','var(--nino)','Tallas niño')}
+    ${sizeGroup(it,i,ADULTO,'adulto','var(--adulto)','Tallas adulto')}
+    <div class="card-foot">
+      <span class="total">Total prenda:<b>${cardTotal(it)}</b></span>
+      <label class="psel no-print"><input type="checkbox" ${printSel.has(i)?'checked':''}
+        onchange="togglePrint(${i},this.checked)"> Imprimir</label>
+      <button class="del no-print" onclick="delCard(${i})" title="Mandar a la papelera">🗑</button>
+    </div>`;
+  // al pulsar la "✕" no abrir el selector de archivos
+  el.querySelectorAll('.photo,.mini').forEach(p=>p.addEventListener('click',e=>{
+    if(e.target.classList.contains('rm')||e.target.classList.contains('adj')) e.preventDefault();
+  }));
+  return el;
+}
+
+function upd(i,field,val){
+  if(ALL.includes(field)){ data[i].sizes[field]=val; updateTotals(i); }
+  else { data[i][field]=val; }
+  save();
+}
+function setTog(i,field,val){
+  data[i][field] = (data[i][field]===val) ? '' : val;  // volver a pulsar = limpiar
+  save(); render();
+}
+function updateTotals(i){
+  // update only the total + stats live without full rerender (keeps focus)
+  const cards=document.querySelectorAll('.card');
+  if(cards[i]) cards[i].querySelector('.total b').textContent=cardTotal(data[i]);
+  let pieces=0; data.forEach(it=>pieces+=cardTotal(it));
+  document.getElementById('stTotal').textContent=pieces;
+}
+function delCard(i){
+  trash.push(data[i]);
+  data.splice(i,1); printSel.clear(); save(); render();
+  toast('Enviada a la papelera ↩ (recupérala en 🗑 Papelera)');
+}
+function openTrash(){ renderTrash(); document.getElementById('trashModal').style.display='flex'; }
+function closeTrash(){ document.getElementById('trashModal').style.display='none'; }
+function restoreCard(j){
+  data.push(trash[j]); trash.splice(j,1);
+  save(); render(); renderTrash();
+  toast('Prenda restaurada ✓ (al final de la lista)');
+}
+function deleteForever(j){
+  if(!confirm('¿Borrar para SIEMPRE la prenda No. '+(trash[j].no||'')+'? Ya no se podrá recuperar.')) return;
+  trash.splice(j,1); save(); render(); renderTrash();
+}
+function emptyTrash(){
+  if(!trash.length){ toast('La papelera ya está vacía'); return; }
+  if(!confirm('¿Vaciar la papelera? Se borrarán para siempre '+trash.length+' prenda(s).')) return;
+  trash=[]; save(); render(); renderTrash(); toast('Papelera vaciada');
+}
+function escH(s){ return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+function renderTrash(){
+  const el=document.getElementById('trashList');
+  if(!trash.length){
+    el.innerHTML='<p style="text-align:center;color:#94a3b8;padding:24px">La papelera está vacía.</p>'; return;
+  }
+  el.innerHTML=trash.map((it,j)=>`
+    <div class="trash-row">
+      <div class="trash-info"><b>No. ${escH(it.no)||'—'}</b> — ${escH(it.desc)||'(sin nombre)'}
+        <span class="trash-tot">(${cardTotal(it)} pzs)</span></div>
+      <button class="t-restore" onclick="restoreCard(${j})">↩ Restaurar</button>
+      <button class="t-del" onclick="deleteForever(${j})">✕ Borrar</button>
+    </div>`).join('');
+}
+function updateTrashBtn(){
+  const b=document.getElementById('btnTrash'); if(!b) return;
+  b.textContent='🗑 Papelera ('+trash.length+')';
+}
+function addCard(){
+  data.push(normalize([{}])[0]);
+  save(); render();
+  const last = document.querySelectorAll('.card, .corte');
+  if(last.length) last[last.length-1].scrollIntoView({behavior:'smooth',block:'center'});
+}
+
+function compressImg(file,max,cb){
+  const reader=new FileReader();
+  reader.onload=e=>{
+    const img=new Image();
+    img.onload=()=>{
+      const sc=Math.min(1,max/Math.max(img.width,img.height));
+      const c=document.createElement('canvas');
+      c.width=img.width*sc; c.height=img.height*sc;
+      c.getContext('2d').drawImage(img,0,0,c.width,c.height);
+      cb(c.toDataURL('image/jpeg',0.7));
+    };
+    img.src=e.target.result;
+  };
+  reader.readAsDataURL(file);
+}
+function setPhoto(i,slot,ev){
+  const f=ev.target.files[0]; if(!f) return;
+  compressImg(f,800,d=>{
+    openEditor(toPhoto(d),false,res=>{ data[i].photos[slot]=res; save(); render(); });
+  });
+}
+function adjustPhoto(i,slot){
+  openEditor(data[i].photos[slot],false,res=>{ data[i].photos[slot]=res; save(); render(); });
+}
+function rmPhoto(i,slot){ data[i].photos[slot]=toPhoto(''); save(); render(); }
+function setCuelloFoto(i,ev){
+  const f=ev.target.files[0]; if(!f) return;
+  compressImg(f,500,d=>{
+    openEditor(toPhoto(d),true,res=>{ data[i].cuelloFoto=res; save(); render(); });
+  });
+}
+function adjustCuello(i){
+  openEditor(data[i].cuelloFoto,true,res=>{ data[i].cuelloFoto=res; save(); render(); });
+}
+function rmCuelloFoto(i){ data[i].cuelloFoto=toPhoto(''); save(); render(); }
+
+/* ---- Editor de imagen (mover / zoom / girar) ---- */
+let ed={p:null,onDone:null,drag:false,sx:0,sy:0};
+function clamp(v,a,b){return Math.max(a,Math.min(b,v));}
+function openEditor(photo,square,onDone){
+  ed.p=Object.assign({},photo); ed.onDone=onDone;
+  const view=document.getElementById('edView');
+  view.style.width = square?'300px':'340px';
+  view.style.height= square?'300px':'255px';
+  document.getElementById('edImg').src=ed.p.src;
+  edApply();
+  document.getElementById('editor').style.display='flex';
+}
+function edApply(){
+  document.getElementById('edImg').style.cssText = imgStyle(ed.p);
+  const z=document.getElementById('edZoomR'); if(z) z.value=ed.p.scale;
+  const x=document.getElementById('edPosX'); if(x) x.value=ed.p.posX;
+  const y=document.getElementById('edPosY'); if(y) y.value=ed.p.posY;
+}
+function edNudge(dx,dy){ ed.p.posX=clamp(ed.p.posX+dx,0,100); ed.p.posY=clamp(ed.p.posY+dy,0,100); edApply(); }
+function edZoom(d){ ed.p.scale=clamp(+(ed.p.scale+d).toFixed(2),1,4); edApply(); }
+function edRotate(){ ed.p.rot=(ed.p.rot+90)%360; edApply(); }
+function edReset(){ ed.p.posX=50; ed.p.posY=50; ed.p.scale=1; ed.p.rot=0; edApply(); }
+function edCancel(){ document.getElementById('editor').style.display='none'; ed.onDone=null; }
+function edAccept(){ const cb=ed.onDone; document.getElementById('editor').style.display='none'; ed.onDone=null; if(cb) cb(ed.p); }
+(function(){
+  const view=document.getElementById('edView');
+  view.addEventListener('pointerdown',e=>{ ed.drag=true; ed.sx=e.clientX; ed.sy=e.clientY;
+    view.classList.add('grabbing'); view.setPointerCapture(e.pointerId); });
+  view.addEventListener('pointermove',e=>{ if(!ed.drag) return;
+    const k=0.5;
+    ed.p.posX=clamp(ed.p.posX-(e.clientX-ed.sx)*k,0,100);
+    ed.p.posY=clamp(ed.p.posY-(e.clientY-ed.sy)*k,0,100);
+    ed.sx=e.clientX; ed.sy=e.clientY; edApply(); });
+  const stop=()=>{ ed.drag=false; view.classList.remove('grabbing'); };
+  view.addEventListener('pointerup',stop);
+  view.addEventListener('pointercancel',stop);
+  view.addEventListener('wheel',e=>{ e.preventDefault(); edZoom(e.deltaY<0?0.1:-0.1); },{passive:false});
+})();
+
+function exportXlsx(){
+  const head=['No.','Descripción','Tela 1','Tela 2','Color','Bies','Cuello con letras','Notas',
+    ...ALL,'Total'];
+  const rows=[head];
+  data.forEach(it=>{
+    rows.push([it.no,it.desc,it.tela1,it.tela2,it.color,it.bies,it.cuello,it.notas,
+      ...ALL.map(k=>it.sizes[k]),cardTotal(it)]);
+  });
+  const ws=XLSX.utils.aoa_to_sheet(rows);
+  ws['!cols']=[{wch:6},{wch:45},{wch:16},{wch:16},{wch:16},{wch:6},{wch:14},{wch:24},
+    ...Array(ALL.length).fill({wch:5}),{wch:7}];
+  const wb=XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb,ws,'Pedido');
+  XLSX.writeFile(wb,'pedido_uniformes.xlsx');
+  toast('Excel exportado ✓');
+}
+
+const COLS_EXTRA=['Tela 1','Tela 2','Color','Bies','Cuello con letras','Notas'];
+function downloadTemplate(){
+  const head=['No.','Descripción',...COLS_EXTRA,...ALL,'Total'];
+  const ejemplo=['39','(Escribe aquí la prenda y borra este ejemplo)','Sportok verde','Piqué rojo',
+    'Azul marino / rojo','Sí','No','Ej: 3 piezas 3XL aparte', ...ALL.map(()=>''), ''];
+  const ws=XLSX.utils.aoa_to_sheet([head,ejemplo]);
+  ws['!cols']=[{wch:6},{wch:45},{wch:16},{wch:16},{wch:16},{wch:6},{wch:14},{wch:24},
+    ...Array(ALL.length).fill({wch:5}),{wch:7}];
+  const wb=XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb,ws,'Pedido');
+  XLSX.writeFile(wb,'plantilla_pedidos.xlsx');
+  toast('Plantilla descargada ✓ — llénala y usa “Agregar desde Excel”');
+}
+
+let importMode='append';
+function triggerImport(mode){ importMode=mode; document.getElementById('imp').click(); }
+
+function backup(){
+  const blob=new Blob([JSON.stringify({data, trash})],{type:'application/json'});
+  const a=document.createElement('a');
+  a.href=URL.createObjectURL(blob);
+  a.download='respaldo_pedidos.json';
+  document.body.appendChild(a); a.click(); a.remove();
+  URL.revokeObjectURL(a.href);
+  setSaved();
+  toast('Respaldo guardado ✓ — cópialo a tu USB');
+}
+function triggerRestore(){ document.getElementById('rst').click(); }
+function restore(ev){
+  const f=ev.target.files[0]; if(!f) return;
+  const r=new FileReader();
+  r.onload=e=>{
+    try{
+      const o=JSON.parse(e.target.result);
+      let nd, nt;
+      if(Array.isArray(o)){ nd=o; nt=[]; }
+      else { nd=o.data; nt=o.trash||[]; }
+      if(!Array.isArray(nd)) throw 0;
+      if(data.length && !confirm('Esto reemplaza lo que ves ahora por el respaldo ('+nd.length+' prendas). ¿Continuar?')){ return; }
+      data=normalize(nd); trash=normalize(nt); printSel.clear(); save(); render(); setSaved();
+      toast('Respaldo cargado ✓ — '+data.length+' prendas');
+    }catch(err){ toast('⚠️ Ese archivo no es un respaldo válido'); }
+  };
+  r.readAsText(f);
+  ev.target.value='';
+}
+
+function importXlsx(ev){
+  const f=ev.target.files[0]; if(!f) return;
+  const reader=new FileReader();
+  reader.onload=e=>{
+    const wb=XLSX.read(new Uint8Array(e.target.result),{type:'array'});
+    const ws=wb.Sheets[wb.SheetNames[0]];
+    const rows=XLSX.utils.sheet_to_json(ws,{header:1,defval:''});
+    if(rows.length<2){ toast('El Excel está vacío'); return; }
+    const hdr=rows[0].map(h=>String(h).trim());
+    const idx=name=>hdr.findIndex(h=>String(h).toLowerCase()==String(name).toLowerCase());
+    const iNo=idx('No.')>=0?idx('No.'):0;
+    const iDesc=[idx('Descripción'),idx('Descripcion'),idx('Descripción')].find(x=>x>=0);
+    const out=[];
+    for(let r=1;r<rows.length;r++){
+      const row=rows[r];
+      if(row.every(c=>c===''||c==null)) continue;
+      const sizes={};
+      ALL.forEach(k=>{ const ci=idx(k); sizes[k]= ci>=0 ? row[ci] : ''; });
+      const get=n=>{ const c=idx(n); return c>=0 ? String(row[c]??'') : ''; };
+      out.push({no:String(row[iNo]??''),desc:String(row[iDesc!=null?iDesc:1]??''),
+        tela1:get('Tela 1'),tela2:get('Tela 2'),color:get('Color'),
+        bies:get('Bies'),cuello:get('Cuello con letras'),notas:get('Notas'),photos:[],sizes});
+    }
+    if(!out.length){ toast('No se encontraron filas'); return; }
+    if(importMode==='replace'){
+      if(!confirm('⚠️ Esto BORRA las '+data.length+' prendas actuales y las reemplaza por '+out.length+' del Excel. ¿Continuar?')) return;
+      data=normalize(out); printSel.clear();
+      toast('Reemplazadas: '+out.length+' prendas ✓');
+    } else {
+      data=data.concat(normalize(out));
+      toast('Agregadas '+out.length+' prendas al final ✓');
+    }
+    save(); render();
+  };
+  reader.readAsArrayBuffer(f);
+  ev.target.value='';
+}
+
+let tT;
+function toast(m){
+  const t=document.getElementById('toast'); t.textContent=m; t.classList.add('show');
+  clearTimeout(tT); tT=setTimeout(()=>t.classList.remove('show'),2200);
+}
+
+document.getElementById('search').addEventListener('input',render);
+
+/* ============================================================
+   VISTA CORTES — réplica del programa original, sobre la lista compartida `data`
+   ============================================================ */
+const CT_NUM=['2','4','6','8','10','12','14','16'];
+const CT_LET=[['Chica','CH'],['Mediana','M'],['Grande','G'],['XL','XL'],['2XL','2XL']];
+const CT_ALL_KEYS = [...CT_NUM,'CH','M','G','XL','2XL'];
+
+function esc(s){ return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+function fmtFecha(f){ if(!f) return '—'; const [y,m,d]=f.split('-'); return `${d}/${m}/${y}`; }
+function hoyStr(){ const d=new Date();
+  return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0'); }
+
+/* ---- Formulario "Nuevo corte" ---- */
+function ctBuildSizeInputs(){
+  const gn=document.getElementById('ctGridNum'); const gl=document.getElementById('ctGridLet');
+  if(!gn||!gl) return;
+  gn.innerHTML=''; gl.innerHTML='';
+  CT_NUM.forEach(t=>gn.appendChild(ctSizeCell(t,t)));
+  CT_LET.forEach(([lbl,key])=>gl.appendChild(ctSizeCell(lbl,key)));
+}
+function ctSizeCell(label,key){
+  const d=document.createElement('div');
+  d.className='ct-size-cell';
+  d.innerHTML=`<span>${label}</span><input type="text" inputmode="numeric" data-talla="${key}" placeholder="0">`;
+  return d;
+}
+function ctCargarFoto(ev){
+  const file=ev.target.files[0]; if(!file) return;
+  compressImg(file,800,d=>{
+    document.getElementById('ctFotoData').value=d;
+    document.getElementById('ctFotoPrev').innerHTML=`<img src="${d}">`;
+  });
+}
+function ctQuitarFoto(){
+  document.getElementById('ctFotoData').value='';
+  document.getElementById('ctFotoInput').value='';
+  document.getElementById('ctFotoPrev').innerHTML='Sin foto';
+}
+function ctGuardar(){
+  const modelo=document.getElementById('ctModelo').value.trim();
+  if(!modelo){ alert('Escribe el modelo o referencia del corte.'); return; }
+  const sizes={}; ALL.forEach(k=>sizes[k]='');
+  document.querySelectorAll('#ctGridNum input, #ctGridLet input').forEach(inp=>{
+    const v=parseInt(inp.value,10);
+    sizes[inp.dataset.talla]=(!isNaN(v)&&v>0)?v:'';
+  });
+  const editId=document.getElementById('ctEditId').value;
+  const foto=document.getElementById('ctFotoData').value;
+  const campos={
+    desc: modelo,
+    cliente: document.getElementById('ctCliente').value.trim(),
+    pedido:  document.getElementById('ctPedido').value.trim(),
+    especificacion: document.getElementById('ctEspec').value.trim(),
+    tela1: document.getElementById('ctTela').value.trim(),
+    color: document.getElementById('ctColor').value.trim(),
+    maquilador: document.getElementById('ctMaq').value.trim(),
+    fecha: document.getElementById('ctFecha').value,
+    contraentrega: document.getElementById('ctContra').value
+  };
+  if(editId){
+    const i=data.findIndex(p=>p.id===editId);
+    if(i>-1){
+      Object.assign(data[i], campos);
+      data[i].sizes = sizes;
+      if(foto) data[i].photos[0] = toPhoto(foto);
+    }
+  } else {
+    const nuevo = normalize([{...campos, sizes, photos:[toPhoto(foto), toPhoto('')]}])[0];
+    data.unshift(nuevo);
+  }
+  save(); ctLimpiar(); ctRender(); _origRender();
+}
+function ctLimpiar(){
+  ['ctEditId','ctModelo','ctCliente','ctPedido','ctEspec','ctTela','ctColor','ctMaq','ctFecha','ctContra']
+    .forEach(id=>document.getElementById(id).value='');
+  ctQuitarFoto();
+  document.querySelectorAll('#ctGridNum input, #ctGridLet input').forEach(i=>i.value='');
+  document.getElementById('ctFormTitle').textContent='Nuevo corte';
+}
+function ctEditar(id){
+  const p=data.find(x=>x.id===id); if(!p) return;
+  document.getElementById('ctEditId').value=p.id;
+  document.getElementById('ctModelo').value=p.desc||'';
+  document.getElementById('ctCliente').value=p.cliente||'';
+  document.getElementById('ctPedido').value=p.pedido||'';
+  document.getElementById('ctEspec').value=p.especificacion||'';
+  document.getElementById('ctTela').value=p.tela1||'';
+  document.getElementById('ctColor').value=p.color||'';
+  document.getElementById('ctMaq').value=p.maquilador||'';
+  document.getElementById('ctFecha').value=p.fecha||'';
+  document.getElementById('ctContra').value=p.contraentrega||'';
+  const foto=p.photos[0].src||'';
+  document.getElementById('ctFotoData').value=foto;
+  document.getElementById('ctFotoPrev').innerHTML = foto ? `<img src="${foto}">` : 'Sin foto';
+  document.querySelectorAll('#ctGridNum input, #ctGridLet input').forEach(inp=>{
+    const v=p.sizes[inp.dataset.talla]; inp.value=(v&&parseInt(v,10)>0)?v:'';
+  });
+  document.getElementById('ctFormTitle').textContent='Editando: '+(p.desc||'(sin nombre)');
+  window.scrollTo({top:0,behavior:'smooth'});
+}
+function ctEliminar(id){
+  const i=data.findIndex(p=>p.id===id);
+  if(i<0) return;
+  if(!confirm('¿Enviar a la papelera el corte "'+(data[i].desc||'')+'"?')) return;
+  trash.push(data[i]); data.splice(i,1); printSel.clear();
+  save(); ctRender(); _origRender();
+}
+
+/* ---- Render de hojas (idéntico al original, con botones Editar/Eliminar) ---- */
+function ctRender(){
+  const cont=document.getElementById('ct-list'); if(!cont) return;
+  const q=(document.getElementById('ctSearch')?.value||'').toLowerCase().trim();
+  const lista=data.filter(p=>{
+    if(!q) return true;
+    return [p.desc,p.cliente,p.pedido,p.especificacion,p.maquilador,p.tela1,p.color].join(' ').toLowerCase().includes(q);
+  });
+  document.getElementById('ctCount').textContent = lista.length+' corte'+(lista.length!==1?'s':'');
+  if(!lista.length){
+    cont.innerHTML='<div class="empty" style="color:var(--ct-muted);padding:50px 20px;text-align:center;font-size:15px">No hay cortes'+(q?' que coincidan':' registrados aún')+'.<br>Agrega uno con el formulario de arriba.</div>';
+    return;
+  }
+  cont.innerHTML=lista.map(p=>{
+    const total=cardTotal(p);
+    const fotoStyle = p.photos[0].src ? `--foto:url('${p.photos[0].src}')` : '';
+    const vencido = p.contraentrega && p.contraentrega < hoyStr();
+    return `
+    <div class="corte ${vencido?'ct-vencido':''}" data-cid="${p.id}" style="${fotoStyle}">
+      <div class="ct-head">
+        <div class="ttl">
+          <small>Modelo / referencia</small>
+          <h2>${esc(p.desc)||'(sin nombre)'}</h2>
+          ${(p.cliente||p.pedido)?`<div style="margin-top:6px;font-size:16px;font-weight:600">👤 ${esc(p.cliente)||'—'}${p.pedido?` · Pedido N° ${esc(p.pedido)}`:''}</div>`:''}
+        </div>
+        <div class="folio">
+          <div>Entrega cortador<br><b>${fmtFecha(p.fecha)}</b></div>
+          <div style="margin-top:8px">Contraentrega maquilero<br>
+            <b class="${vencido?'ct-vencido-txt':''}">${fmtFecha(p.contraentrega)}</b>
+            ${vencido?'<br><span class="ct-badge">⚠ ATRASADO</span>':''}</div>
+        </div>
+      </div>
+      <div style="margin-bottom:20px">
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:0 30px">
+          <div class="ct-dato"><label>Cliente</label><div style="font-size:18px;font-weight:600;border-bottom:1px solid var(--ct-line);padding-bottom:4px;min-height:26px">${esc(p.cliente)||'—'}</div></div>
+          <div class="ct-dato"><label>Especificación</label><div style="font-size:18px;font-weight:600;border-bottom:1px solid var(--ct-line);padding-bottom:4px;min-height:26px">${esc(p.especificacion)||'—'}</div></div>
+          <div class="ct-dato"><label>Maquilador (quién lo cose)</label><div style="font-size:18px;font-weight:600;border-bottom:1px solid var(--ct-line);padding-bottom:4px;min-height:26px">${esc(p.maquilador)||'—'}</div></div>
+          <div class="ct-dato"><label>Tipo de tela</label><div style="font-size:18px;font-weight:600;border-bottom:1px solid var(--ct-line);padding-bottom:4px;min-height:26px">${esc(p.tela1)||'—'}</div></div>
+          <div class="ct-dato"><label>Color</label><div style="font-size:18px;font-weight:600;border-bottom:1px solid var(--ct-line);padding-bottom:4px;min-height:26px">${esc(p.color)||'—'}</div></div>
+        </div>
+      </div>
+      <div class="ct-grp">Cantidades por talla — Números</div>
+      ${ctTablaHoja(p,CT_NUM,false)}
+      <div class="ct-grp">Cantidades por talla — Letras</div>
+      ${ctTablaHoja(p,CT_LET,true)}
+      <div class="ct-total"><span>TOTAL DE PIEZAS</span><span class="n">${total}</span></div>
+      <div class="ct-foot no-print">
+        <button class="ct-btn-print" onclick="ctImprimirUno('${p.id}')" style="background:var(--ct-green);color:#fff;border:0">🖨️ Imprimir esta</button>
+        <button class="ct-btn-edit" onclick="ctEditar('${p.id}')">✏️ Editar</button>
+        <button class="ct-btn-del" onclick="ctEliminar('${p.id}')">🗑️ Eliminar</button>
+      </div>
+    </div>`;
+  }).join('');
+}
+function ctTablaHoja(p,lista,esLet){
+  const heads = lista.map(t=>`<th>${esLet?t[0]:t}</th>`).join('');
+  const cells = lista.map(t=>{
+    const k = esLet?t[1]:t;
+    const v = p.sizes[k];
+    const num = parseInt(v,10);
+    return `<td><input type="text" inputmode="numeric" value="${num>0?num:''}" placeholder="0"
+      data-id="${p.id}" data-talla="${k}" oninput="ctEditarCelda(this)"></td>`;
+  }).join('');
+  return `<table class="ct-tabla"><tr>${heads}</tr><tr>${cells}</tr></table>`;
+}
+function ctEditarCelda(inp){
+  const id=inp.dataset.id, talla=inp.dataset.talla;
+  const p=data.find(x=>x.id===id); if(!p) return;
+  const v=parseInt(inp.value,10);
+  p.sizes[talla] = (!isNaN(v)&&v>0)?v:'';
+  const total=cardTotal(p);
+  const el=document.querySelector('.corte[data-cid="'+id+'"] .ct-total .n');
+  if(el) el.textContent=total;
+  save();
+}
+function ctImprimirUno(id){
+  const all=document.querySelectorAll('.corte');
+  all.forEach(c=>{ if(c.dataset.cid!==id) c.classList.add('hide-print'); });
+  window.print();
+  setTimeout(()=>all.forEach(c=>c.classList.remove('hide-print')),500);
+}
+
+/* ---- Importar / exportar específicos de Cortes ---- */
+const CT_SIZE_ALIASES = {
+  '2':'2','4':'4','6':'6','8':'8','10':'10','12':'12','14':'14','16':'16',
+  'chica':'CH','ch':'CH','s':'CH',
+  'mediana':'M','m':'M',
+  'grande':'G','g':'G','l':'G',
+  'xl':'XL','extra':'XL','eg':'XL','extragrande':'XL',
+  '2xl':'2XL','xxl':'2XL'
+};
+const CT_HEADERS_PLANTILLA = ['Cliente','Pedido','Especificacion','Modelo','Maquilador','Tela','Color','Fecha','Contraentrega',
+  ...CT_NUM, 'Chica','Mediana','Grande','XL','2XL'];
+function ctNormHeader(h){
+  return String(h||'').toLowerCase().trim().normalize('NFD').replace(/[̀-ͯ]/g,'')
+    .replace(/^talla\s*/,'').replace(/\s+/g,'');
+}
+function ctMapField(h){
+  const n=ctNormHeader(h);
+  if(['modelo','referencia','ref','descripcion'].includes(n)) return {tipo:'desc'};
+  if(['cliente','clienta'].includes(n)) return {tipo:'cliente'};
+  if(['pedido','numerodepedido','ndepedido','orden','numerodeorden'].includes(n)) return {tipo:'pedido'};
+  if(['especificacion','especificaciones','nota','notas'].includes(n)) return {tipo:'especificacion'};
+  if(['maquilador','maquilero','cosedor','costurera','costurero'].includes(n)) return {tipo:'maquilador'};
+  if(['tela','tipodetela'].includes(n)) return {tipo:'tela1'};
+  if(['color'].includes(n)) return {tipo:'color'};
+  if(['contraentrega','fechadecontraentrega','contraentregamaquilero','entregamaquilero'].includes(n)) return {tipo:'contraentrega'};
+  if(['fecha','entrega','fechadeentrega','entregacortador','fechaentrega'].includes(n)) return {tipo:'fecha'};
+  if(CT_SIZE_ALIASES[n]) return {tipo:'talla', talla:CT_SIZE_ALIASES[n]};
+  return null;
+}
+function ctFechaDesde(v){
+  if(v instanceof Date && !isNaN(v))
+    return v.getFullYear()+'-'+String(v.getMonth()+1).padStart(2,'0')+'-'+String(v.getDate()).padStart(2,'0');
+  const s=String(v||'').trim();
+  return /^\d{4}-\d{2}-\d{2}$/.test(s)?s:'';
+}
+function ctImportarExcel(ev){
+  const file=ev.target.files[0]; if(!file) return;
+  if(typeof XLSX==='undefined'){ alert('Para leer Excel se necesita conexión a internet la primera vez.'); ev.target.value=''; return; }
+  const reader=new FileReader();
+  reader.onload=e=>{
+    try{
+      const wb=XLSX.read(e.target.result,{type:'array',cellDates:true});
+      const ws=wb.Sheets[wb.SheetNames[0]];
+      const filas=XLSX.utils.sheet_to_json(ws,{header:1,defval:''});
+      ctProcesarFilas(filas);
+    }catch(err){ alert('No se pudo leer el archivo.'); }
+    ev.target.value='';
+  };
+  reader.readAsArrayBuffer(file);
+}
+function ctProcesarFilas(filas){
+  filas = filas.filter(f=>f.some(c=>String(c).trim()!==''));
+  if(filas.length<2){ alert('El archivo no tiene datos.'); return; }
+  const mapa = filas[0].map(ctMapField);
+  if(!mapa.some(m=>m&&m.tipo==='talla')){
+    alert('No encontré columnas de tallas. Usa el botón "Plantilla" para ver el formato.'); return;
+  }
+  let nuevos=0;
+  for(let r=1;r<filas.length;r++){
+    const fila=filas[r];
+    const sizes={}; ALL.forEach(k=>sizes[k]='');
+    const campos={desc:'',cliente:'',pedido:'',especificacion:'',maquilador:'',tela1:'',color:'',fecha:'',contraentrega:''};
+    mapa.forEach((m,ci)=>{
+      if(!m) return;
+      const val=fila[ci];
+      if(m.tipo==='talla'){ const v=parseInt(val,10); sizes[m.talla]=(!isNaN(v)&&v>0)?v:''; }
+      else if(m.tipo==='fecha'||m.tipo==='contraentrega'){ campos[m.tipo]=ctFechaDesde(val); }
+      else { campos[m.tipo]=String(val||'').trim(); }
+    });
+    if(!campos.desc) campos.desc='Importado '+(nuevos+1);
+    data.unshift(normalize([{...campos, sizes}])[0]);
+    nuevos++;
+  }
+  save(); ctRender(); _origRender();
+  alert(nuevos+' corte(s) importado(s).');
+}
+function ctDescargarPlantilla(){
+  const ejemplo=['Señora Ludovina Taller','5','Uniforme escolar','Playera polo','Taller de Doña Rosa','Algodón jersey','Azul marino','2026-06-01','2026-06-15',
+    12,24,24,18,12,0,0,0, 0,30,40,20,10];
+  if(typeof XLSX!=='undefined'){
+    const ws=XLSX.utils.aoa_to_sheet([CT_HEADERS_PLANTILLA,ejemplo]);
+    const wb=XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb,ws,'Cortes');
+    XLSX.writeFile(wb,'plantilla_cortes.xlsx');
+  } else {
+    const csv=[CT_HEADERS_PLANTILLA.join(','),ejemplo.join(',')].join('\n');
+    const a=document.createElement('a');
+    a.href='data:text/csv;charset=utf-8,'+encodeURIComponent(csv);
+    a.download='plantilla_cortes.csv'; a.click();
+  }
+}
+function ctExportarJSON(){
+  if(!data.length){ alert('No hay cortes para exportar.'); return; }
+  const items = data.map(p=>{
+    const cantidades={};
+    CT_NUM.forEach(t=> cantidades[t] = parseInt(p.sizes[t],10)||0);
+    CT_LET.forEach(([lbl,key])=> cantidades[lbl] = parseInt(p.sizes[key],10)||0);
+    return {
+      id:p.id, modelo:p.desc, cliente:p.cliente, pedido:p.pedido,
+      especificacion:p.especificacion, tela:p.tela1, color:p.color,
+      maquilador:p.maquilador, fecha:p.fecha, contraentrega:p.contraentrega,
+      foto:p.photos[0].src||'', cantidades
+    };
+  });
+  const blob=new Blob([JSON.stringify(items,null,2)],{type:'application/json'});
+  const a=document.createElement('a');
+  a.href=URL.createObjectURL(blob);
+  a.download='cortes_respaldo_'+hoyStr()+'.json';
+  a.click(); URL.revokeObjectURL(a.href);
+}
+function ctImportarJSON(ev){
+  const file=ev.target.files[0]; if(!file) return;
+  const r=new FileReader();
+  r.onload=e=>{
+    try{
+      const arr=JSON.parse(e.target.result);
+      if(!Array.isArray(arr)) throw 0;
+      let nuevos=0;
+      arr.forEach(c=>{
+        if(!c) return;
+        if(c.id && data.some(p=>p.id===c.id)) return; // ya existe
+        const sizes={}; ALL.forEach(k=>sizes[k]='');
+        const cant=c.cantidades||{};
+        CT_NUM.forEach(t=>{ const v=parseInt(cant[t],10); if(v>0) sizes[t]=v; });
+        CT_LET.forEach(([lbl,key])=>{ const v=parseInt(cant[lbl],10); if(v>0) sizes[key]=v; });
+        data.unshift(normalize([{
+          id:c.id, desc:c.modelo||'', cliente:c.cliente||'', pedido:c.pedido||'',
+          especificacion:c.especificacion||'', tela1:c.tela||'', color:c.color||'',
+          maquilador:c.maquilador||'', fecha:c.fecha||'', contraentrega:c.contraentrega||'',
+          photos:[toPhoto(c.foto||''), toPhoto('')], sizes
+        }])[0]);
+        nuevos++;
+      });
+      save(); ctRender(); _origRender();
+      alert(nuevos+' corte(s) cargados.');
+    }catch(err){ alert('El archivo no es un respaldo válido.'); }
+    ev.target.value='';
+  };
+  r.readAsText(file);
+}
+
+function showView(name){
+  document.querySelectorAll('.view').forEach(v=>v.classList.remove('active'));
+  document.getElementById('view-'+name).classList.add('active');
+  document.getElementById('tab-p').classList.toggle('active', name==='pedidos');
+  document.getElementById('tab-c').classList.toggle('active', name==='cortes');
+  if(name==='cortes') ctRender();
+  else _origRender();
+}
+
+// Hook: refrescar Cortes si está visible cuando Pedidos se re-renderiza
+const _origRender = render;
+render = function(){ _origRender(); if(document.getElementById('view-cortes').classList.contains('active')) ctRender(); };
+
+ctBuildSizeInputs();
+render();
+</script>
+</body>
+</html>

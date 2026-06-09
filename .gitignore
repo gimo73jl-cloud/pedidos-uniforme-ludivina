@@ -1,0 +1,21 @@
+# Carpeta local de Supabase CLI (estado temporal)
+supabase/.temp/
+
+# Fotos locales (referencia, no van al deploy)
+fotos de uniformes/
+
+# Archivos del sistema operativo
+Thumbs.db
+.DS_Store
+desktop.ini
+
+# Editores
+.vscode/
+.idea/
+.claude/
+
+# Archivos sensibles que nunca deben subirse
+.env
+.env.*
+*.secret
+secrets.json

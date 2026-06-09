@@ -1,0 +1,682 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Pedidos de Uniformes — Tarjetas</title>
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+<style>
+  :root{
+    --azul:#1e3a5f; --azul2:#2d5a8c; --acento:#e8703a; --bg:#f4f6f9;
+    --nino:#3b82f6; --adulto:#10b981; --gris:#64748b;
+    --rojo:#dc2626; --borde:#e2e8f0;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;font-family:'Segoe UI',Arial,sans-serif;background:var(--bg);color:#1f2937}
+  header{background:linear-gradient(135deg,var(--azul),var(--azul2));color:#fff;padding:16px 22px;
+    box-shadow:0 2px 10px rgba(0,0,0,.15);position:sticky;top:0;z-index:50}
+  header h1{margin:0;font-size:20px;display:flex;align-items:center;gap:10px}
+  header h1 small{font-weight:400;opacity:.85;font-size:13px}
+  .toolbar{display:flex;flex-wrap:wrap;gap:8px;margin-top:12px;align-items:center}
+  .btn{border:0;border-radius:8px;padding:9px 14px;font-size:13px;font-weight:600;cursor:pointer;
+    color:#fff;background:rgba(255,255,255,.15);transition:.15s;display:inline-flex;align-items:center;gap:6px}
+  .btn:hover{background:rgba(255,255,255,.28)}
+  .btn.primary{background:var(--acento)}
+  .btn.primary:hover{filter:brightness(1.08)}
+  .btn.ghost{background:#fff;color:var(--azul)}
+  .btn.dirty{background:var(--acento)!important;color:#fff!important;animation:pulse 1.4s infinite}
+  @keyframes pulse{0%,100%{box-shadow:0 0 0 0 rgba(232,112,58,.6)}50%{box-shadow:0 0 0 7px rgba(232,112,58,0)}}
+  .search{flex:1;min-width:160px;border:0;border-radius:8px;padding:9px 12px;font-size:14px}
+  .stats{display:flex;gap:18px;margin-left:auto;font-size:13px;flex-wrap:wrap}
+  .stats b{font-size:17px;display:block}
+  .wrap{max-width:1400px;margin:0 auto;padding:22px}
+  .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(340px,1fr));gap:18px}
+  .card{background:#fff;border-radius:14px;box-shadow:0 2px 8px rgba(0,0,0,.08);overflow:hidden;
+    display:flex;flex-direction:column;border:1px solid var(--borde);break-inside:avoid}
+  .card-top{display:flex;gap:12px;padding:14px;border-bottom:1px solid var(--borde)}
+  .photos{flex:0 0 96px;display:flex;flex-direction:column;gap:6px}
+  .photo{width:96px;height:72px;border-radius:10px;background:#eef2f7;
+    border:2px dashed #cbd5e1;display:flex;align-items:center;justify-content:center;
+    cursor:pointer;overflow:hidden;position:relative;text-align:center;color:#94a3b8;font-size:10px}
+  .photo img{width:100%;height:100%;object-fit:cover}
+  .photo .rm{position:absolute;top:2px;right:2px;background:rgba(0,0,0,.55);color:#fff;border:0;
+    border-radius:50%;width:20px;height:20px;cursor:pointer;font-size:12px;line-height:1;display:none}
+  .photo:hover .rm{display:block}
+  .photo .adj{position:absolute;top:2px;left:2px;background:rgba(0,0,0,.55);color:#fff;border:0;
+    border-radius:50%;width:20px;height:20px;cursor:pointer;font-size:11px;line-height:1;display:none}
+  .photo:hover .adj{display:block}
+  .head-info{flex:1;min-width:0}
+  .details{padding:8px 14px;border-bottom:1px solid var(--borde);background:#fcfdfe}
+  .frow{display:flex;align-items:center;gap:8px;margin-bottom:6px}
+  .frow label{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.4px;
+    color:var(--gris);flex:0 0 78px}
+  .frow input.txt{flex:1;border:1px solid var(--borde);border-radius:6px;padding:5px 8px;
+    font-size:13px;font-family:inherit;background:#fff;min-width:0}
+  .frow input.txt:focus{outline:1px solid var(--azul2)}
+  .toggle{display:flex;gap:4px}
+  .toggle button{border:1px solid var(--borde);background:#fff;color:var(--gris);border-radius:6px;
+    padding:4px 12px;font-size:12px;font-weight:600;cursor:pointer;font-family:inherit}
+  .toggle button.on-si{background:var(--adulto);color:#fff;border-color:var(--adulto)}
+  .toggle button.on-no{background:var(--gris);color:#fff;border-color:var(--gris)}
+  .mini{width:40px;height:40px;border-radius:7px;background:#eef2f7;border:2px dashed #cbd5e1;
+    display:flex;align-items:center;justify-content:center;cursor:pointer;overflow:hidden;
+    position:relative;text-align:center;color:#94a3b8;font-size:9px;flex:0 0 40px}
+  .mini img{width:100%;height:100%;object-fit:cover}
+  .mini .rm{position:absolute;top:0;right:0;background:rgba(0,0,0,.55);color:#fff;border:0;
+    border-radius:0 0 0 6px;width:16px;height:16px;cursor:pointer;font-size:10px;line-height:1;display:none}
+  .mini:hover .rm{display:block}
+  .mini .adj{position:absolute;top:0;left:0;background:rgba(0,0,0,.55);color:#fff;border:0;
+    border-radius:0 0 6px 0;width:16px;height:16px;cursor:pointer;font-size:9px;line-height:1;display:none}
+  .mini:hover .adj{display:block}
+  /* ---- Editor de imagen ---- */
+  .ed-bg{display:none;position:fixed;inset:0;background:rgba(15,23,42,.75);z-index:200;
+    align-items:center;justify-content:center;padding:16px}
+  .ed-box{background:#fff;border-radius:14px;padding:16px;max-width:95vw;box-shadow:0 10px 40px rgba(0,0,0,.4)}
+  .ed-box h3{margin:0 0 4px;color:var(--azul);font-size:16px}
+  .ed-box p{margin:0 0 10px;color:var(--gris);font-size:12px}
+  .ed-view{margin:0 auto;border-radius:10px;overflow:hidden;background:#0f172a;
+    position:relative;cursor:grab;touch-action:none;border:2px solid var(--azul)}
+  .ed-view.grabbing{cursor:grabbing}
+  .ed-view img{display:block}
+  .ed-sliders{margin:12px 0 6px}
+  .ed-srow{display:flex;align-items:center;gap:10px;margin:8px 0}
+  .ed-srow span{font-size:18px;width:24px;text-align:center;flex:0 0 24px;color:var(--azul)}
+  .ed-srow input[type=range]{flex:1;height:26px;cursor:pointer;accent-color:var(--acento)}
+  .ed-ctrls{display:flex;flex-wrap:wrap;gap:6px;justify-content:center;margin:6px 0 12px}
+  .ed-ctrls button{border:1px solid var(--borde);background:#f8fafc;border-radius:8px;
+    padding:8px 12px;font-size:14px;font-weight:600;cursor:pointer;font-family:inherit;color:#1f2937}
+  .ed-ctrls button:hover{background:#eef2f7}
+  .ed-actions{display:flex;gap:8px;justify-content:flex-end}
+  .ed-actions button{border:0;border-radius:8px;padding:10px 18px;font-size:14px;font-weight:700;
+    cursor:pointer;font-family:inherit;background:#e2e8f0;color:#1f2937}
+  .ed-actions button.primary{background:var(--acento);color:#fff}
+  .trash-row{display:flex;align-items:center;gap:8px;padding:8px 10px;border-bottom:1px solid var(--borde)}
+  .trash-row:last-child{border-bottom:0}
+  .trash-info{flex:1;font-size:13px;min-width:0}
+  .trash-tot{color:var(--gris);font-size:12px}
+  .t-restore,.t-del{border:0;border-radius:6px;padding:6px 10px;font-size:12px;font-weight:700;
+    cursor:pointer;font-family:inherit;white-space:nowrap}
+  .t-restore{background:var(--adulto);color:#fff}
+  .t-del{background:#fee2e2;color:var(--rojo)}
+  .notas{width:100%;border:1px solid var(--borde);border-radius:6px;padding:6px 8px;font-size:13px;
+    font-family:inherit;resize:vertical;background:#fffef5;min-height:34px;margin-top:2px}
+  .notas:focus{outline:1px solid var(--acento)}
+  .no-row{display:inline-flex;align-items:center;gap:5px;background:var(--azul);
+    border-radius:20px;padding:2px 6px 2px 9px}
+  .no-row .no-lbl{color:#fff;font-weight:700;font-size:12px}
+  .no-input{width:48px;border:0;border-radius:14px;background:rgba(255,255,255,.9);
+    color:var(--azul);font-weight:700;font-size:12px;text-align:center;padding:2px 4px;font-family:inherit}
+  .no-input:focus{outline:2px solid var(--acento);background:#fff}
+  .desc{width:100%;border:1px solid var(--borde);border-radius:6px;resize:vertical;font-size:14px;
+    font-weight:600;color:#1f2937;margin-top:8px;font-family:inherit;line-height:1.3;
+    background:#fff;padding:5px 7px;min-height:34px}
+  .desc:focus{outline:2px solid var(--acento);background:#fffef5}
+  .group{padding:8px 14px}
+  .group-title{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;
+    margin:4px 0 6px;display:flex;align-items:center;gap:6px}
+  .dot{width:9px;height:9px;border-radius:50%}
+  .sizes{display:grid;grid-template-columns:repeat(8,1fr);gap:5px}
+  .sizes.adulto{grid-template-columns:repeat(5,1fr)}
+  .size{display:flex;flex-direction:column;align-items:center;background:#f8fafc;border-radius:7px;
+    padding:3px 0 2px;border:1px solid var(--borde)}
+  .size label{font-size:10px;font-weight:700;color:var(--gris)}
+  .size input{width:100%;border:0;text-align:center;font-size:14px;font-weight:600;background:transparent;
+    color:#111;padding:2px 0;font-family:inherit}
+  .size input:focus{outline:0;background:#fffbe6}
+  .size.filled{background:#eff6ff;border-color:#bfdbfe}
+  .size.alert{background:#fef2f2;border-color:#fecaca}
+  .size.alert input{color:var(--rojo);font-size:9px;font-weight:700}
+  .card-foot{margin-top:auto;display:flex;justify-content:space-between;align-items:center;
+    padding:10px 14px;background:#f8fafc;border-top:1px solid var(--borde)}
+  .total{font-size:13px;color:var(--gris)}
+  .total b{font-size:20px;color:var(--azul);margin-left:4px}
+  .del{background:none;border:0;color:#cbd5e1;cursor:pointer;font-size:12px}
+  .del:hover{color:var(--rojo)}
+  .psel{display:inline-flex;align-items:center;gap:5px;font-size:12px;font-weight:600;
+    color:var(--azul);cursor:pointer;user-select:none}
+  .psel input{width:16px;height:16px;cursor:pointer;accent-color:var(--acento)}
+  .card.sel{outline:3px solid var(--acento);outline-offset:-3px}
+  .empty{text-align:center;padding:60px;color:#94a3b8}
+  .toast{position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:#1f2937;color:#fff;
+    padding:12px 20px;border-radius:10px;font-size:14px;box-shadow:0 6px 20px rgba(0,0,0,.25);
+    opacity:0;transition:.3s;z-index:100;pointer-events:none}
+  .toast.show{opacity:1}
+  .print-head{display:none}
+  @media print{
+    header,.del,.photo .rm,.mini .rm,.photo .adj,.mini .adj,.no-print{display:none!important}
+    body{background:#fff}
+    .wrap{padding:0;max-width:none}
+    .grid{grid-template-columns:repeat(2,1fr);gap:10px}
+    .card{box-shadow:none;border:1px solid #999;page-break-inside:avoid}
+    .print-head{display:block;text-align:center;padding:10px;border-bottom:2px solid var(--azul);margin-bottom:10px}
+    .print-head h2{margin:0;color:var(--azul)}
+    .size input{border:none}
+    .details{background:#fff}
+    .frow input.txt{border:none}
+    .hide-print{display:none!important}
+    .card.sel{outline:none}
+    @page{margin:1cm}
+  }
+</style>
+</head>
+<body>
+<header class="no-print">
+  <h1>🧵 Pedidos de Uniformes <small>Tarjetas visuales · editables · imprimibles</small></h1>
+  <div class="toolbar">
+    <input id="search" class="search" placeholder="🔍 Buscar prenda por número o descripción...">
+    <button class="btn primary" onclick="addCard()">＋ Agregar prenda</button>
+    <button class="btn ghost" id="btnPrint" onclick="doPrint()">🖨️ Imprimir / PDF (todas)</button>
+    <button class="btn" onclick="toggleAllPrint()">☑️ Marcar / Quitar todas</button>
+    <button class="btn" id="btnTrash" onclick="openTrash()">🗑 Papelera (0)</button>
+    <button class="btn" onclick="exportXlsx()">⬇️ Exportar Excel</button>
+    <button class="btn" onclick="downloadTemplate()">📋 Plantilla Excel</button>
+    <button class="btn primary" onclick="triggerImport('append')">➕ Agregar desde Excel</button>
+    <button class="btn" onclick="triggerImport('replace')">⬆️ Reemplazar con Excel</button>
+    <button class="btn ghost" id="btnBackup" onclick="backup()">💾 Guardar respaldo</button>
+    <button class="btn ghost" onclick="triggerRestore()">📂 Cargar respaldo</button>
+    <input type="file" id="imp" accept=".xlsx,.xls" style="display:none" onchange="importXlsx(event)">
+    <input type="file" id="rst" accept=".json" style="display:none" onchange="restore(event)">
+    <div class="stats">
+      <span>Prendas<b id="stCount">0</b></span>
+      <span>Piezas totales<b id="stTotal">0</b></span>
+    </div>
+  </div>
+</header>
+
+<div class="wrap">
+  <div class="print-head">
+    <h2>Pedido de Uniformes</h2>
+    <div id="printDate"></div>
+  </div>
+  <div id="grid" class="grid"></div>
+  <div id="empty" class="empty" style="display:none">No hay prendas. Pulsa “＋ Agregar prenda” o importa un Excel.</div>
+</div>
+
+<div id="editor" class="ed-bg">
+  <div class="ed-box">
+    <h3>Ajustar foto</h3>
+    <p>Arrastra la imagen para moverla · usa los botones para acercar o girar</p>
+    <div class="ed-view" id="edView"><img id="edImg"></div>
+    <div class="ed-sliders">
+      <div class="ed-srow"><span>🔎</span>
+        <input type="range" id="edZoomR" min="1" max="4" step="0.02" oninput="ed.p.scale=+this.value;edApply()">
+        <span>🔍</span></div>
+      <div class="ed-srow"><span>←</span>
+        <input type="range" id="edPosX" min="0" max="100" step="1" oninput="ed.p.posX=+this.value;edApply()">
+        <span>→</span></div>
+      <div class="ed-srow"><span>↑</span>
+        <input type="range" id="edPosY" min="0" max="100" step="1" oninput="ed.p.posY=+this.value;edApply()">
+        <span>↓</span></div>
+    </div>
+    <div class="ed-ctrls">
+      <button onclick="edRotate()">↻ Girar</button>
+      <button onclick="edReset()">⟲ Reiniciar</button>
+    </div>
+    <div class="ed-actions">
+      <button onclick="edCancel()">Cancelar</button>
+      <button class="primary" onclick="edAccept()">✓ Aceptar</button>
+    </div>
+  </div>
+</div>
+
+<div id="trashModal" class="ed-bg">
+  <div class="ed-box" style="width:540px;max-width:95vw">
+    <h3>🗑 Papelera</h3>
+    <p>Prendas que mandaste a la basura. Puedes restaurarlas o borrarlas para siempre.</p>
+    <div id="trashList" style="max-height:50vh;overflow:auto;border:1px solid var(--borde);border-radius:8px"></div>
+    <div class="ed-actions">
+      <button onclick="emptyTrash()">Vaciar papelera</button>
+      <button class="primary" onclick="closeTrash()">Cerrar</button>
+    </div>
+  </div>
+</div>
+
+<div id="toast" class="toast"></div>
+
+<script>
+const NINO=['2','4','6','8','10','12','14','16'];
+const ADULTO=['CH','M','G','XL','2XL'];
+const ALL=[...NINO,...ADULTO];
+
+const SEED = [{"no": "1", "desc": "Pantalonera roja Potros", "sizes": {"2": "", "4": "", "6": "", "8": "", "10": "", "12": "", "14": "", "16": 20, "CH": 35, "M": 15, "G": 10, "XL": 10, "2XL": 10}}, {"no": "2", "desc": "Playera Cuello Polo oficial CEBETA cuello Gris rojo", "sizes": {"2": "", "4": "", "6": "", "8": "", "10": "", "12": 10, "14": 15, "16": 20, "CH": 25, "M": 20, "G": 10, "XL": 10, "2XL": 6}}, {"no": "3", "desc": "Playera Cuello redondo deportiva CEBETA Potros.", "sizes": {"2": "", "4": "", "6": "", "8": "", "10": "", "12": "", "14": 20, "16": 25, "CH": 30, "M": 15, "G": 10, "XL": 8, "2XL": 6}}, {"no": "4", "desc": "Playera Deportiva coyotes cuello V azul turquesa", "sizes": {"2": "", "4": "", "6": "", "8": "", "10": "", "12": 20, "14": 25, "16": 20, "CH": 20, "M": 15, "G": 10, "XL": 10, "2XL": ""}}, {"no": "5", "desc": "Playera oficial turqueza Pancho Villa", "sizes": {"2": "", "4": "", "6": "", "8": "", "10": "", "12": 25, "14": 30, "16": 10, "CH": 10, "M": "", "G": "", "XL": "", "2XL": ""}}, {"no": "6", "desc": "Pantalonera azul marino con azul turqueza tigres Genaro Hermosillo", "sizes": {"2": "", "4": "", "6": "", "8": "", "10": "", "12": 10, "14": 30, "16": 30, "CH": 25, "M": 20, "G": 10, "XL": 10, "2XL": 3}}, {"no": "7", "desc": "Playera cuello V tigres Genaro Hermosillo azul marino", "sizes": {"2": "", "4": "", "6": "", "8": "", "10": "", "12": 15, "14": 30, "16": 30, "CH": 25, "M": 15, "G": 10, "XL": "", "2XL": ""}}, {"no": "8", "desc": "Playera azul marino Genaro Hermosillo tigres cuello polo Gris", "sizes": {"2": "", "4": "", "6": "", "8": "", "10": "", "12": 10, "14": 25, "16": 25, "CH": 25, "M": 15, "G": 10, "XL": "", "2XL": ""}}, {"no": "9", "desc": "Playera Deportiva blanca con negro cuello redondo Pumas", "sizes": {"2": "", "4": "", "6": "", "8": "", "10": "", "12": 10, "14": 25, "16": 25, "CH": 25, "M": 10, "G": "", "XL": "", "2XL": ""}}, {"no": "10", "desc": "Playera blanca cuello negro Pumas cuello polo.", "sizes": {"2": "", "4": "", "6": "", "8": "", "10": "", "12": 10, "14": 20, "16": 20, "CH": 10, "M": 10, "G": 10, "XL": "", "2XL": ""}}, {"no": "11", "desc": "Pantalonera negra pumas", "sizes": {"2": "", "4": "", "6": "", "8": "", "10": "", "12": 15, "14": 20, "16": 20, "CH": 10, "M": 10, "G": 10, "XL": "", "2XL": ""}}, {"no": "12", "desc": "Pantalonera Gris verde CECYTEch.", "sizes": {"2": "", "4": "", "6": "", "8": "", "10": "", "12": "", "14": 10, "16": 20, "CH": 15, "M": 15, "G": 10, "XL": 10, "2XL": 10}}, {"no": "13", "desc": "Playera blanca Cuello verde logotipo CECYTEch", "sizes": {"2": "", "4": "", "6": "", "8": "", "10": "", "12": 10, "14": 15, "16": 25, "CH": 15, "M": 15, "G": 10, "XL": 10, "2XL": 6}}, {"no": "14", "desc": "Pantalonera azul marino a traz amarillo blanco", "sizes": {"2": "", "4": "", "6": "", "8": "", "10": "", "12": "", "14": "", "16": "", "CH": 15, "M": 25, "G": 10, "XL": 10, "2XL": 8}}, {"no": "15", "desc": "Playera oficial Gris prepa 8412 cuello", "sizes": {"2": "", "4": "", "6": "", "8": "", "10": "", "12": 10, "14": 30, "16": 15, "CH": 20, "M": 10, "G": "", "XL": "", "2XL": ""}}, {"no": "15B", "desc": "Playera Oficial gris Prepa 8412, cuello", "sizes": {"2": "", "4": "", "6": "", "8": "", "10": "", "12": 10, "14": 20, "16": 15, "CH": 20, "M": 10, "G": "", "XL": "", "2XL": ""}}, {"no": "16", "desc": "PANTALONERA Azul marino, gris, amarillo, negra 2145", "sizes": {"2": "", "4": "", "6": "", "8": 40, "10": 40, "12": 40, "14": 25, "16": 20, "CH": 10, "M": 5, "G": "", "XL": "", "2XL": ""}}, {"no": "17", "desc": "PANTALONERA Azul marino con franja azul cielo", "sizes": {"2": "", "4": "", "6": 15, "8": 40, "10": 40, "12": 20, "14": 15, "16": 10, "CH": 5, "M": "", "G": "", "XL": "", "2XL": ""}}, {"no": "18", "desc": "PLAYERA Azul cielo, cuello azul marino con azul cielo, logotipo Juan Gutiérrez de la Cueva", "sizes": {"2": "", "4": "", "6": 20, "8": 40, "10": 40, "12": 30, "14": 15, "16": 10, "CH": 5, "M": 3, "G": "", "XL": "", "2XL": ""}}, {"no": "19", "desc": "PLAYERA Azul rey, cuello gris, Tomás Gameros, 2131", "sizes": {"2": "", "4": "", "6": 10, "8": 30, "10": 20, "12": 30, "14": 15, "16": 10, "CH": 6, "M": "", "G": "", "XL": "", "2XL": ""}}, {"no": "20", "desc": "PANTALONERA Gris con azul rey, Tomás Gameros", "sizes": {"2": "", "4": "", "6": 15, "8": 35, "10": 35, "12": 20, "14": 10, "16": 10, "CH": "", "M": "", "G": "", "XL": "", "2XL": ""}}, {"no": "21", "desc": "PANTALONERA Azul marino, 1 franja blanca y 1 roja", "sizes": {"2": 15, "4": 20, "6": 40, "8": 35, "10": 30, "12": 20, "14": 10, "16": 10, "CH": 6, "M": 4, "G": "", "XL": "", "2XL": ""}}, {"no": "22", "desc": "Playera cuello V, logotipo Panteras, blanca cuello azul marino", "sizes": {"2": "", "4": "", "6": 10, "8": 15, "10": 15, "12": 15, "14": 10, "16": 10, "CH": 5, "M": "", "G": "", "XL": "", "2XL": ""}}, {"no": "23", "desc": "Playera blanca cuello polo azul marino, logotipo Miguel Hgo.", "sizes": {"2": "", "4": "", "6": "", "8": 20, "10": 20, "12": 20, "14": 15, "16": "", "CH": 5, "M": "", "G": "", "XL": "", "2XL": ""}}, {"no": "24", "desc": "Pantalonera verde, 2 franjas gris", "sizes": {"2": "", "4": "", "6": 10, "8": 20, "10": 15, "12": 15, "14": 6, "16": "", "CH": "", "M": "", "G": "", "XL": "", "2XL": ""}}, {"no": "25", "desc": "Playera gris verde, Rafael Molina Bentancur/Betancor", "sizes": {"2": "", "4": "", "6": 10, "8": 20, "10": 20, "12": 15, "14": 5, "16": 5, "CH": "", "M": "", "G": "", "XL": "", "2XL": ""}}, {"no": "26", "desc": "Pantalonera azul marino, blanco y turquesa", "sizes": {"2": "", "4": "", "6": 10, "8": 15, "10": 15, "12": 15, "14": 10, "16": "", "CH": "", "M": "", "G": "", "XL": "", "2XL": ""}}, {"no": "27", "desc": "Playera azul turquesa, logotipo conejos, cambiar cuello a V", "sizes": {"2": "", "4": "", "6": 10, "8": 25, "10": 15, "12": 10, "14": 10, "16": "", "CH": "", "M": "", "G": "", "XL": "", "2XL": ""}}, {"no": "28", "desc": "Playera amarilla, cuello azul marino con amarillo, boca negra", "sizes": {"2": "", "4": "", "6": 10, "8": 20, "10": 20, "12": 20, "14": 10, "16": 10, "CH": "", "M": "", "G": "", "XL": "", "2XL": ""}}, {"no": "29", "desc": "Pantalonera azul marino, amarillo y rojo", "sizes": {"2": "", "4": "", "6": 10, "8": 20, "10": 15, "12": 15, "14": 10, "16": 10, "CH": 5, "M": "", "G": "", "XL": "", "2XL": ""}}, {"no": "30", "desc": "Pantalonera azul marino 2 franjas rojas / 2 atravesadas", "sizes": {"2": "", "4": "", "6": "", "8": 20, "10": 15, "12": 15, "14": 15, "16": 5, "CH": 5, "M": "", "G": "", "XL": "", "2XL": ""}}, {"no": "31", "desc": "Playera roja logotipo Mario / arreglar rojos de la 2145 / poner logotipo sobrepuesto", "sizes": {"2": "ARREGLAR", "4": "ARREGLAR", "6": "ARREGLAR", "8": "ARREGLAR", "10": "ARREGLAR", "12": "ARREGLAR", "14": "ARREGLAR", "16": "ARREGLAR", "CH": "ARREGLAR", "M": "ARREGLAR", "G": "", "XL": "", "2XL": ""}}, {"no": "32", "desc": "Playera Kinder Jaime Nuño naranja", "sizes": {"2": 10, "4": 20, "6": 35, "8": "", "10": "", "12": "", "14": "", "16": "", "CH": "", "M": "", "G": "", "XL": "", "2XL": ""}}, {"no": "33", "desc": "Pantalonera azul marino naranja y bies amarillos", "sizes": {"2": 10, "4": 25, "6": 40, "8": 6, "10": "", "12": "", "14": "", "16": "", "CH": "", "M": "", "G": "", "XL": "", "2XL": ""}}, {"no": "34", "desc": "Pantalonera azul marino bies a los lados azul turquesa", "sizes": {"2": 10, "4": 20, "6": 35, "8": 6, "10": "", "12": "", "14": "", "16": "", "CH": "", "M": "", "G": "", "XL": "", "2XL": ""}}, {"no": "35", "desc": "Playera roja Kinder Miguel Hidalgo", "sizes": {"2": 15, "4": 30, "6": 40, "8": 5, "10": "", "12": "", "14": "", "16": "", "CH": "", "M": "", "G": "", "XL": "", "2XL": ""}}, {"no": "36", "desc": "Pantalonera azul marino con verde limón, 2 rayas atravesadas en una pierna", "sizes": {"2": 10, "4": 30, "6": 35, "8": 6, "10": "", "12": "", "14": "", "16": "", "CH": "", "M": "", "G": "", "XL": "", "2XL": ""}}, {"no": "37", "desc": "Playera verde limón Niño Artillero", "sizes": {"2": 10, "4": 15, "6": 15, "8": "", "10": "", "12": "", "14": "", "16": "", "CH": "", "M": "", "G": "", "XL": "", "2XL": ""}}, {"no": "38", "desc": "Pantalonera azul marino, 2 franjas a lo largo de las piernas verde limón", "sizes": {"2": 10, "4": 15, "6": 15, "8": "", "10": "", "12": "", "14": "", "16": "", "CH": "", "M": "", "G": "", "XL": "", "2XL": ""}}];
+
+let data=[], trash=[];
+loadAll();
+
+function loadAll(){
+  try{
+    const s = localStorage.getItem('pedidos_uniformes');
+    if(s){
+      const o = JSON.parse(s);
+      if(Array.isArray(o)){ data=normalize(o); trash=[]; }
+      else { data=normalize(o.data||[]); trash=normalize(o.trash||[]); }
+      return;
+    }
+  }catch(e){}
+  data=normalize(SEED); trash=[];
+}
+function toPhoto(v){
+  if(v && typeof v==='object')
+    return {src:v.src||'', posX:v.posX??50, posY:v.posY??50, scale:v.scale??1, rot:v.rot??0};
+  return {src:(typeof v==='string'?v:''), posX:50, posY:50, scale:1, rot:0};
+}
+function normalize(arr){
+  return arr.map(it=>{
+    const sizes={};
+    ALL.forEach(k=> sizes[k] = (it.sizes && it.sizes[k]!=null) ? it.sizes[k] : '');
+    let raw = Array.isArray(it.photos) ? it.photos.slice(0,2) : [];
+    if(it.photo && raw.length===0) raw=[it.photo];             // migra dato viejo de 1 foto
+    const photos=[toPhoto(raw[0]), toPhoto(raw[1])];
+    return {no:it.no||'', desc:it.desc||'', photos,
+      tela1:it.tela1||'', tela2:it.tela2||'', color:it.color||'',
+      bies:it.bies||'', cuello:it.cuello||'', cuelloFoto:toPhoto(it.cuelloFoto), notas:it.notas||'', sizes};
+  });
+}
+function save(){
+  try{ localStorage.setItem('pedidos_uniformes', JSON.stringify({data, trash})); }
+  catch(e){ toast('⚠️ No se pudo guardar (memoria llena). Exporta a Excel.'); }
+  markDirty();
+}
+
+let dirty=false;
+function markDirty(){ dirty=true; updateDirtyUI(); }
+function setSaved(){ dirty=false; updateDirtyUI(); }
+function updateDirtyUI(){
+  const b=document.getElementById('btnBackup');
+  if(!b) return;
+  if(dirty){ b.classList.add('dirty'); b.textContent='💾 Guardar respaldo  ● sin guardar'; }
+  else { b.classList.remove('dirty'); b.textContent='💾 Guardar respaldo'; }
+}
+setInterval(()=>{ if(dirty) toast('🔔 Llevas cambios sin respaldar — pulsa “💾 Guardar respaldo”'); }, 180000);
+window.addEventListener('beforeunload', e=>{ if(dirty){ e.preventDefault(); e.returnValue=''; } });
+function num(v){ const n=parseFloat(v); return isNaN(n)?0:n; }
+function cardTotal(it){ return ALL.reduce((s,k)=>s+num(it.sizes[k]),0); }
+
+/* ---- Selección de tarjetas para imprimir ---- */
+const printSel=new Set();
+function togglePrint(i,on){
+  if(on) printSel.add(i); else printSel.delete(i);
+  const c=document.querySelector('.card[data-idx="'+i+'"]');
+  if(c) c.classList.toggle('sel',on);
+  updatePrintBtn();
+}
+function toggleAllPrint(){
+  if(printSel.size>=data.length) printSel.clear();
+  else data.forEach((_,i)=>printSel.add(i));
+  render();
+}
+function updatePrintBtn(){
+  const b=document.getElementById('btnPrint'); if(!b) return;
+  b.textContent = printSel.size>0 ? '🖨️ Imprimir ('+printSel.size+' sel.)' : '🖨️ Imprimir / PDF (todas)';
+}
+function doPrint(){
+  if(document.getElementById('search').value){ document.getElementById('search').value=''; render(); }
+  const usarSel = printSel.size>0;
+  document.querySelectorAll('.card').forEach(c=>{
+    if(usarSel && !printSel.has(+c.dataset.idx)) c.classList.add('hide-print');
+  });
+  window.print();
+}
+window.addEventListener('afterprint',()=>{
+  document.querySelectorAll('.hide-print').forEach(c=>c.classList.remove('hide-print'));
+});
+
+function render(){
+  const q = (document.getElementById('search').value||'').toLowerCase();
+  const grid = document.getElementById('grid');
+  grid.innerHTML='';
+  let shown=0, pieces=0;
+  data.forEach((it,i)=>{
+    pieces += cardTotal(it);
+    if(q && !((it.no+' '+it.desc).toLowerCase().includes(q))) return;
+    shown++;
+    grid.appendChild(buildCard(it,i));
+  });
+  document.getElementById('empty').style.display = data.length? 'none':'block';
+  document.getElementById('stCount').textContent = data.length;
+  document.getElementById('stTotal').textContent = pieces;
+  updatePrintBtn(); updateTrashBtn();
+  document.getElementById('printDate').textContent = new Date().toLocaleDateString('es-MX',{year:'numeric',month:'long',day:'numeric'});
+}
+
+function sizeGroup(it,i,keys,cls,color,title){
+  const cells = keys.map(k=>{
+    const v = it.sizes[k];
+    const alert = (typeof v==='string' && v && isNaN(parseFloat(v)));
+    const filled = num(v)>0;
+    return `<div class="size ${alert?'alert':(filled?'filled':'')}">
+      <label>${k}</label>
+      <input value="${v===''||v==null?'':String(v).replace(/"/g,'&quot;')}"
+        oninput="upd(${i},'${k}',this.value)" title="${k}">
+    </div>`;
+  }).join('');
+  return `<div class="group">
+    <div class="group-title"><span class="dot" style="background:${color}"></span>${title}</div>
+    <div class="sizes ${cls}">${cells}</div></div>`;
+}
+
+function imgStyle(p){
+  return `object-fit:cover;width:100%;height:100%;object-position:${p.posX}% ${p.posY}%;`+
+    `transform:rotate(${p.rot}deg) scale(${p.scale});transform-origin:center;`;
+}
+function photoSlot(it,i,slot){
+  const p=it.photos[slot];
+  const inner = p.src
+    ? `<img src="${p.src}" style="${imgStyle(p)}">
+       <button class="adj" onclick="adjustPhoto(${i},${slot})" title="Ajustar foto">✎</button>
+       <button class="rm" onclick="rmPhoto(${i},${slot})" title="Quitar foto">✕</button>`
+    : `📷 Foto ${slot+1}`;
+  return `<label class="photo">${inner}
+    <input type="file" accept="image/*" style="display:none" onchange="setPhoto(${i},${slot},event)"></label>`;
+}
+function cuelloFotoSlot(it,i){
+  const p=it.cuelloFoto;
+  const inner = p.src
+    ? `<img src="${p.src}" style="${imgStyle(p)}">
+       <button class="adj" onclick="adjustCuello(${i})" title="Ajustar foto">✎</button>
+       <button class="rm" onclick="rmCuelloFoto(${i})" title="Quitar foto">✕</button>`
+    : `📷`;
+  return `<label class="mini" title="Foto del cuello">${inner}
+    <input type="file" accept="image/*" style="display:none" onchange="setCuelloFoto(${i},event)"></label>`;
+}
+function tog(it,i,field){
+  const v=it[field];
+  return `<div class="toggle">
+    <button class="${v==='Sí'?'on-si':''}" onclick="setTog(${i},'${field}','Sí')">Sí</button>
+    <button class="${v==='No'?'on-no':''}" onclick="setTog(${i},'${field}','No')">No</button>
+  </div>`;
+}
+function esc(s){return String(s==null?'':s).replace(/"/g,'&quot;');}
+
+function buildCard(it,i){
+  const el=document.createElement('div');
+  el.className = 'card' + (printSel.has(i)?' sel':'');
+  el.dataset.idx=i;
+  el.innerHTML = `
+    <div class="card-top">
+      <div class="photos">${photoSlot(it,i,0)}${photoSlot(it,i,1)}</div>
+      <div class="head-info">
+        <span class="no-row"><span class="no-lbl">No.</span>
+          <input class="no-input" value="${esc(it.no)}" placeholder="#" oninput="upd(${i},'no',this.value)"></span>
+        <textarea class="desc" rows="3" placeholder="Nombre / descripción (ej: Playera escolar roja negra)"
+          oninput="upd(${i},'desc',this.value)">${it.desc||''}</textarea>
+      </div>
+    </div>
+    <div class="details">
+      <div class="frow"><label>Tela 1</label>
+        <input class="txt" value="${esc(it.tela1)}" placeholder="Ej: Sportok verde" oninput="upd(${i},'tela1',this.value)"></div>
+      <div class="frow"><label>Tela 2</label>
+        <input class="txt" value="${esc(it.tela2)}" placeholder="Ej: Piqué rojo" oninput="upd(${i},'tela2',this.value)"></div>
+      <div class="frow"><label>Color</label>
+        <input class="txt" value="${esc(it.color)}" placeholder="Ej: Azul marino / rojo" oninput="upd(${i},'color',this.value)"></div>
+      <div class="frow"><label>Bies</label>${tog(it,i,'bies')}</div>
+      <div class="frow"><label>Cuello c/letras</label>${tog(it,i,'cuello')}${cuelloFotoSlot(it,i)}</div>
+      <div class="frow" style="align-items:flex-start"><label>Notas</label>
+        <textarea class="notas" rows="1" placeholder="Ej: 3 piezas 3XL aparte..."
+          oninput="upd(${i},'notas',this.value)">${it.notas||''}</textarea></div>
+    </div>
+    ${sizeGroup(it,i,NINO,'','var(--nino)','Tallas niño')}
+    ${sizeGroup(it,i,ADULTO,'adulto','var(--adulto)','Tallas adulto')}
+    <div class="card-foot">
+      <span class="total">Total prenda:<b>${cardTotal(it)}</b></span>
+      <label class="psel no-print"><input type="checkbox" ${printSel.has(i)?'checked':''}
+        onchange="togglePrint(${i},this.checked)"> Imprimir</label>
+      <button class="del no-print" onclick="delCard(${i})" title="Mandar a la papelera">🗑</button>
+    </div>`;
+  // al pulsar la "✕" no abrir el selector de archivos
+  el.querySelectorAll('.photo,.mini').forEach(p=>p.addEventListener('click',e=>{
+    if(e.target.classList.contains('rm')||e.target.classList.contains('adj')) e.preventDefault();
+  }));
+  return el;
+}
+
+function upd(i,field,val){
+  if(ALL.includes(field)){ data[i].sizes[field]=val; updateTotals(i); }
+  else { data[i][field]=val; }
+  save();
+}
+function setTog(i,field,val){
+  data[i][field] = (data[i][field]===val) ? '' : val;  // volver a pulsar = limpiar
+  save(); render();
+}
+function updateTotals(i){
+  // update only the total + stats live without full rerender (keeps focus)
+  const cards=document.querySelectorAll('.card');
+  if(cards[i]) cards[i].querySelector('.total b').textContent=cardTotal(data[i]);
+  let pieces=0; data.forEach(it=>pieces+=cardTotal(it));
+  document.getElementById('stTotal').textContent=pieces;
+}
+function delCard(i){
+  trash.push(data[i]);
+  data.splice(i,1); printSel.clear(); save(); render();
+  toast('Enviada a la papelera ↩ (recupérala en 🗑 Papelera)');
+}
+function openTrash(){ renderTrash(); document.getElementById('trashModal').style.display='flex'; }
+function closeTrash(){ document.getElementById('trashModal').style.display='none'; }
+function restoreCard(j){
+  data.push(trash[j]); trash.splice(j,1);
+  save(); render(); renderTrash();
+  toast('Prenda restaurada ✓ (al final de la lista)');
+}
+function deleteForever(j){
+  if(!confirm('¿Borrar para SIEMPRE la prenda No. '+(trash[j].no||'')+'? Ya no se podrá recuperar.')) return;
+  trash.splice(j,1); save(); render(); renderTrash();
+}
+function emptyTrash(){
+  if(!trash.length){ toast('La papelera ya está vacía'); return; }
+  if(!confirm('¿Vaciar la papelera? Se borrarán para siempre '+trash.length+' prenda(s).')) return;
+  trash=[]; save(); render(); renderTrash(); toast('Papelera vaciada');
+}
+function escH(s){ return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+function renderTrash(){
+  const el=document.getElementById('trashList');
+  if(!trash.length){
+    el.innerHTML='<p style="text-align:center;color:#94a3b8;padding:24px">La papelera está vacía.</p>'; return;
+  }
+  el.innerHTML=trash.map((it,j)=>`
+    <div class="trash-row">
+      <div class="trash-info"><b>No. ${escH(it.no)||'—'}</b> — ${escH(it.desc)||'(sin nombre)'}
+        <span class="trash-tot">(${cardTotal(it)} pzs)</span></div>
+      <button class="t-restore" onclick="restoreCard(${j})">↩ Restaurar</button>
+      <button class="t-del" onclick="deleteForever(${j})">✕ Borrar</button>
+    </div>`).join('');
+}
+function updateTrashBtn(){
+  const b=document.getElementById('btnTrash'); if(!b) return;
+  b.textContent='🗑 Papelera ('+trash.length+')';
+}
+function addCard(){
+  data.push(normalize([{}])[0]);
+  save(); render();
+  const cards=document.querySelectorAll('.card');
+  cards[cards.length-1].scrollIntoView({behavior:'smooth',block:'center'});
+}
+
+function compressImg(file,max,cb){
+  const reader=new FileReader();
+  reader.onload=e=>{
+    const img=new Image();
+    img.onload=()=>{
+      const sc=Math.min(1,max/Math.max(img.width,img.height));
+      const c=document.createElement('canvas');
+      c.width=img.width*sc; c.height=img.height*sc;
+      c.getContext('2d').drawImage(img,0,0,c.width,c.height);
+      cb(c.toDataURL('image/jpeg',0.7));
+    };
+    img.src=e.target.result;
+  };
+  reader.readAsDataURL(file);
+}
+function setPhoto(i,slot,ev){
+  const f=ev.target.files[0]; if(!f) return;
+  compressImg(f,800,d=>{
+    openEditor(toPhoto(d),false,res=>{ data[i].photos[slot]=res; save(); render(); });
+  });
+}
+function adjustPhoto(i,slot){
+  openEditor(data[i].photos[slot],false,res=>{ data[i].photos[slot]=res; save(); render(); });
+}
+function rmPhoto(i,slot){ data[i].photos[slot]=toPhoto(''); save(); render(); }
+function setCuelloFoto(i,ev){
+  const f=ev.target.files[0]; if(!f) return;
+  compressImg(f,500,d=>{
+    openEditor(toPhoto(d),true,res=>{ data[i].cuelloFoto=res; save(); render(); });
+  });
+}
+function adjustCuello(i){
+  openEditor(data[i].cuelloFoto,true,res=>{ data[i].cuelloFoto=res; save(); render(); });
+}
+function rmCuelloFoto(i){ data[i].cuelloFoto=toPhoto(''); save(); render(); }
+
+/* ---- Editor de imagen (mover / zoom / girar) ---- */
+let ed={p:null,onDone:null,drag:false,sx:0,sy:0};
+function clamp(v,a,b){return Math.max(a,Math.min(b,v));}
+function openEditor(photo,square,onDone){
+  ed.p=Object.assign({},photo); ed.onDone=onDone;
+  const view=document.getElementById('edView');
+  view.style.width = square?'300px':'340px';
+  view.style.height= square?'300px':'255px';
+  document.getElementById('edImg').src=ed.p.src;
+  edApply();
+  document.getElementById('editor').style.display='flex';
+}
+function edApply(){
+  document.getElementById('edImg').style.cssText = imgStyle(ed.p);
+  const z=document.getElementById('edZoomR'); if(z) z.value=ed.p.scale;
+  const x=document.getElementById('edPosX'); if(x) x.value=ed.p.posX;
+  const y=document.getElementById('edPosY'); if(y) y.value=ed.p.posY;
+}
+function edNudge(dx,dy){ ed.p.posX=clamp(ed.p.posX+dx,0,100); ed.p.posY=clamp(ed.p.posY+dy,0,100); edApply(); }
+function edZoom(d){ ed.p.scale=clamp(+(ed.p.scale+d).toFixed(2),1,4); edApply(); }
+function edRotate(){ ed.p.rot=(ed.p.rot+90)%360; edApply(); }
+function edReset(){ ed.p.posX=50; ed.p.posY=50; ed.p.scale=1; ed.p.rot=0; edApply(); }
+function edCancel(){ document.getElementById('editor').style.display='none'; ed.onDone=null; }
+function edAccept(){ const cb=ed.onDone; document.getElementById('editor').style.display='none'; ed.onDone=null; if(cb) cb(ed.p); }
+(function(){
+  const view=document.getElementById('edView');
+  view.addEventListener('pointerdown',e=>{ ed.drag=true; ed.sx=e.clientX; ed.sy=e.clientY;
+    view.classList.add('grabbing'); view.setPointerCapture(e.pointerId); });
+  view.addEventListener('pointermove',e=>{ if(!ed.drag) return;
+    const k=0.5;
+    ed.p.posX=clamp(ed.p.posX-(e.clientX-ed.sx)*k,0,100);
+    ed.p.posY=clamp(ed.p.posY-(e.clientY-ed.sy)*k,0,100);
+    ed.sx=e.clientX; ed.sy=e.clientY; edApply(); });
+  const stop=()=>{ ed.drag=false; view.classList.remove('grabbing'); };
+  view.addEventListener('pointerup',stop);
+  view.addEventListener('pointercancel',stop);
+  view.addEventListener('wheel',e=>{ e.preventDefault(); edZoom(e.deltaY<0?0.1:-0.1); },{passive:false});
+})();
+
+function exportXlsx(){
+  const head=['No.','Descripción','Tela 1','Tela 2','Color','Bies','Cuello con letras','Notas',
+    ...ALL,'Total'];
+  const rows=[head];
+  data.forEach(it=>{
+    rows.push([it.no,it.desc,it.tela1,it.tela2,it.color,it.bies,it.cuello,it.notas,
+      ...ALL.map(k=>it.sizes[k]),cardTotal(it)]);
+  });
+  const ws=XLSX.utils.aoa_to_sheet(rows);
+  ws['!cols']=[{wch:6},{wch:45},{wch:16},{wch:16},{wch:16},{wch:6},{wch:14},{wch:24},
+    ...Array(ALL.length).fill({wch:5}),{wch:7}];
+  const wb=XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb,ws,'Pedido');
+  XLSX.writeFile(wb,'pedido_uniformes.xlsx');
+  toast('Excel exportado ✓');
+}
+
+const COLS_EXTRA=['Tela 1','Tela 2','Color','Bies','Cuello con letras','Notas'];
+function downloadTemplate(){
+  const head=['No.','Descripción',...COLS_EXTRA,...ALL,'Total'];
+  const ejemplo=['39','(Escribe aquí la prenda y borra este ejemplo)','Sportok verde','Piqué rojo',
+    'Azul marino / rojo','Sí','No','Ej: 3 piezas 3XL aparte', ...ALL.map(()=>''), ''];
+  const ws=XLSX.utils.aoa_to_sheet([head,ejemplo]);
+  ws['!cols']=[{wch:6},{wch:45},{wch:16},{wch:16},{wch:16},{wch:6},{wch:14},{wch:24},
+    ...Array(ALL.length).fill({wch:5}),{wch:7}];
+  const wb=XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb,ws,'Pedido');
+  XLSX.writeFile(wb,'plantilla_pedidos.xlsx');
+  toast('Plantilla descargada ✓ — llénala y usa “Agregar desde Excel”');
+}
+
+let importMode='append';
+function triggerImport(mode){ importMode=mode; document.getElementById('imp').click(); }
+
+function backup(){
+  const blob=new Blob([JSON.stringify({data, trash})],{type:'application/json'});
+  const a=document.createElement('a');
+  a.href=URL.createObjectURL(blob);
+  a.download='respaldo_pedidos.json';
+  document.body.appendChild(a); a.click(); a.remove();
+  URL.revokeObjectURL(a.href);
+  setSaved();
+  toast('Respaldo guardado ✓ — cópialo a tu USB');
+}
+function triggerRestore(){ document.getElementById('rst').click(); }
+function restore(ev){
+  const f=ev.target.files[0]; if(!f) return;
+  const r=new FileReader();
+  r.onload=e=>{
+    try{
+      const o=JSON.parse(e.target.result);
+      let nd, nt;
+      if(Array.isArray(o)){ nd=o; nt=[]; }
+      else { nd=o.data; nt=o.trash||[]; }
+      if(!Array.isArray(nd)) throw 0;
+      if(data.length && !confirm('Esto reemplaza lo que ves ahora por el respaldo ('+nd.length+' prendas). ¿Continuar?')){ return; }
+      data=normalize(nd); trash=normalize(nt); printSel.clear(); save(); render(); setSaved();
+      toast('Respaldo cargado ✓ — '+data.length+' prendas');
+    }catch(err){ toast('⚠️ Ese archivo no es un respaldo válido'); }
+  };
+  r.readAsText(f);
+  ev.target.value='';
+}
+
+function importXlsx(ev){
+  const f=ev.target.files[0]; if(!f) return;
+  const reader=new FileReader();
+  reader.onload=e=>{
+    const wb=XLSX.read(new Uint8Array(e.target.result),{type:'array'});
+    const ws=wb.Sheets[wb.SheetNames[0]];
+    const rows=XLSX.utils.sheet_to_json(ws,{header:1,defval:''});
+    if(rows.length<2){ toast('El Excel está vacío'); return; }
+    const hdr=rows[0].map(h=>String(h).trim());
+    const idx=name=>hdr.findIndex(h=>String(h).toLowerCase()==String(name).toLowerCase());
+    const iNo=idx('No.')>=0?idx('No.'):0;
+    const iDesc=[idx('Descripción'),idx('Descripcion'),idx('Descripción')].find(x=>x>=0);
+    const out=[];
+    for(let r=1;r<rows.length;r++){
+      const row=rows[r];
+      if(row.every(c=>c===''||c==null)) continue;
+      const sizes={};
+      ALL.forEach(k=>{ const ci=idx(k); sizes[k]= ci>=0 ? row[ci] : ''; });
+      const get=n=>{ const c=idx(n); return c>=0 ? String(row[c]??'') : ''; };
+      out.push({no:String(row[iNo]??''),desc:String(row[iDesc!=null?iDesc:1]??''),
+        tela1:get('Tela 1'),tela2:get('Tela 2'),color:get('Color'),
+        bies:get('Bies'),cuello:get('Cuello con letras'),notas:get('Notas'),photos:[],sizes});
+    }
+    if(!out.length){ toast('No se encontraron filas'); return; }
+    if(importMode==='replace'){
+      if(!confirm('⚠️ Esto BORRA las '+data.length+' prendas actuales y las reemplaza por '+out.length+' del Excel. ¿Continuar?')) return;
+      data=normalize(out); printSel.clear();
+      toast('Reemplazadas: '+out.length+' prendas ✓');
+    } else {
+      data=data.concat(normalize(out));
+      toast('Agregadas '+out.length+' prendas al final ✓');
+    }
+    save(); render();
+  };
+  reader.readAsArrayBuffer(f);
+  ev.target.value='';
+}
+
+let tT;
+function toast(m){
+  const t=document.getElementById('toast'); t.textContent=m; t.classList.add('show');
+  clearTimeout(tT); tT=setTimeout(()=>t.classList.remove('show'),2200);
+}
+
+document.getElementById('search').addEventListener('input',render);
+render();
+</script>
+</body>
+</html>
