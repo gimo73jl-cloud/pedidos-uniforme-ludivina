@@ -583,6 +583,13 @@ const SEED = [{"no": "1", "desc": "Pantalonera roja Potros", "sizes": {"2": "", 
 let data=[], trash=[];
 loadAll();
 
+// Ordena las prendas por número (natural: 1,2,...,10,...,15,15B,16,...)
+function sortDataByNo(){
+  const cmp = (a,b) => String(a.no||'').localeCompare(String(b.no||''), undefined, {numeric:true, sensitivity:'base'});
+  data.sort(cmp);
+  trash.sort(cmp);
+}
+
 function loadAll(){
   try{
     const s = localStorage.getItem('pedidos_uniformes');
@@ -590,10 +597,12 @@ function loadAll(){
       const o = JSON.parse(s);
       if(Array.isArray(o)){ data=normalize(o); trash=[]; }
       else { data=normalize(o.data||[]); trash=normalize(o.trash||[]); }
+      sortDataByNo();
       return;
     }
   }catch(e){}
   data=normalize(SEED); trash=[];
+  sortDataByNo();
 }
 function toPhoto(v){
   if(v && typeof v==='object')
@@ -1047,7 +1056,7 @@ function restore(ev){
       else { nd=o.data; nt=o.trash||[]; }
       if(!Array.isArray(nd)) throw 0;
       if(data.length && !confirm('Esto reemplaza lo que ves ahora por el respaldo ('+nd.length+' prendas). ¿Continuar?')){ return; }
-      data=normalize(nd); trash=normalize(nt); printSel.clear(); save(); render(); setSaved();
+      data=normalize(nd); trash=normalize(nt); sortDataByNo(); printSel.clear(); save(); render(); setSaved();
       toast('Respaldo cargado · subiendo a la nube…');
       clearTimeout(syncT);
       setTimeout(()=>syncToCloud(true), 100);
@@ -1089,7 +1098,7 @@ function importXlsx(ev){
       data=data.concat(normalize(out));
       toast('Agregadas '+out.length+' prendas al final ✓');
     }
-    save(); render();
+    sortDataByNo(); save(); render();
   };
   reader.readAsArrayBuffer(f);
   ev.target.value='';
@@ -1509,6 +1518,7 @@ async function loadFromCloud(){
     if(r.in_trash) trash.push(p); else data.push(p);
     lastSyncJSON[p.id] = syncKey(p, r.in_trash);
   });
+  sortDataByNo();
   // Generar URLs firmados (válidos 24h) para todas las fotos de Storage
   const paths = [];
   [...data, ...trash].forEach(p=>{
