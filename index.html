@@ -269,6 +269,128 @@
     .corte::before,.ct-head{-webkit-print-color-adjust:exact;print-color-adjust:exact}
     @page{margin:1cm}
   }
+  /* ============== MÓVIL — vista de lectura (iPhone / Android) ============== */
+  @media (max-width: 768px){
+    /* Layout general */
+    .wrap{padding:12px}
+    .ct-page{padding:12px}
+
+    /* Pestañas Pedidos/Cortes — más compactas y a ancho completo */
+    .tabs{padding:6px 6px 0;gap:4px}
+    .tab-btn{padding:8px 10px;font-size:13px;flex:1;justify-content:center}
+
+    /* ---------- Encabezado Pedidos ---------- */
+    header{padding:10px 12px;top:42px}
+    header h1{font-size:16px;gap:6px}
+    header h1 small{display:none}
+    .toolbar{gap:6px;margin-top:8px}
+    .btn{padding:7px 10px;font-size:12px}
+    .search{min-width:0;flex:1 1 100%;font-size:14px;padding:10px 12px}
+    .stats{margin-left:0;width:100%;justify-content:space-around;font-size:12px;
+      padding-top:6px;border-top:1px solid rgba(255,255,255,.18)}
+    .stats b{font-size:16px}
+
+    /* Ocultar botones de edición compleja en móvil — el celular es solo para visualizar */
+    header .toolbar > button[onclick*="addCard"],
+    header .toolbar > button[onclick*="toggleAllPrint"],
+    header .toolbar > button[onclick*="exportXlsx"],
+    header .toolbar > button[onclick*="downloadTemplate"],
+    header .toolbar > button[onclick*="triggerImport"],
+    header .toolbar > button[onclick*="backup"],
+    header .toolbar > button[onclick*="triggerRestore"],
+    header .toolbar > button[onclick*="migrarFotosAlStorage"]{display:none}
+
+    /* ---------- Grid de tarjetas Pedidos ---------- */
+    .grid{grid-template-columns:1fr;gap:12px}
+
+    /* ---------- Tarjeta individual ---------- */
+    .card-top{padding:12px;gap:10px}
+    .photos{flex:0 0 78px}
+    .photo{width:78px;height:58px;font-size:9px}
+    .frow{gap:6px;margin-bottom:5px}
+    .frow label{flex:0 0 56px;font-size:9px;letter-spacing:0}
+    .frow input.txt{font-size:12px;padding:4px 6px}
+    .desc{font-size:13px;min-height:30px}
+    .notas{font-size:12px}
+    .mini{width:34px;height:34px;flex:0 0 34px}
+
+    /* Tallas: mantener 8 columnas (números) y 5 (adulto), achicar tipografía */
+    .group{padding:6px 12px}
+    .group-title{font-size:10px;margin:2px 0 5px}
+    .sizes{gap:3px}
+    .size{padding:2px 0 1px}
+    .size label{font-size:9px}
+    .size input{font-size:14px;padding:1px 0;font-weight:700}
+    .size.alert input{font-size:8px}
+
+    .card-foot{padding:8px 12px}
+    .total{font-size:12px}
+    .total b{font-size:18px}
+    .psel{font-size:11px}
+
+    /* Auto-ocultar filas de detalles vacías en móvil para reducir ruido visual.
+       Sólo se ocultan cuando no hay foco — al volver al PC todo sigue editable. */
+    .details .frow:has(input.txt:placeholder-shown):not(:focus-within){display:none}
+    .details .frow:has(textarea.notas:placeholder-shown):not(:focus-within){display:none}
+    /* Toggles SÍ/NO sin selección: ocultar fila (Bies/Cuello) */
+    .details .frow:has(.toggle):not(:has(.toggle .on-si)):not(:has(.toggle .on-no)):not(:focus-within){display:none}
+    /* Si toda la sección .details quedó sin filas visibles, ocultarla completa */
+    .details:not(:has(.frow:not([style*="display: none"]))){padding:0;border:0}
+
+    /* ---------- CORTES — encabezado ---------- */
+    #view-cortes .ct-hd{padding:12px 14px;top:42px}
+    #view-cortes .ct-hd h1{font-size:18px}
+    #view-cortes .ct-hd .sub{font-size:11px}
+    .ct-btn-print{padding:7px 12px;font-size:13px}
+
+    /* Ocultar formulario de nuevo corte (es edición pura) */
+    .ct-form-card{display:none}
+
+    /* Toolbar de búsqueda de cortes: dejar solo el buscador */
+    .ct-toolbar2{gap:8px}
+    .ct-toolbar2 #ctSearch{min-width:0;flex:1;font-size:14px}
+    .ct-toolbar2 .left:nth-child(2){display:none}
+
+    /* ---------- Hojas de corte: ancho fluido en lugar de carta ---------- */
+    .ct-wrap{padding:6px;gap:14px}
+    .corte{width:100%;min-height:auto;padding:14px;border-radius:8px;
+      box-shadow:0 2px 8px rgba(0,0,0,.12)}
+    .corte::before{width:95%;height:88%;filter:blur(3px);opacity:.32}
+    .ct-head{padding-bottom:8px;margin-bottom:10px}
+    .ct-head .ttl small{font-size:10px;letter-spacing:1px}
+    .ct-head .ttl h2{font-size:20px}
+    .ct-head .folio{min-width:0;font-size:11px}
+    .ct-head .folio b{font-size:12px}
+    .ct-mid{grid-template-columns:1fr;gap:0;margin-bottom:8px}
+    .ct-dato{margin-bottom:8px}
+    .ct-dato label{font-size:10px;letter-spacing:.5px}
+    .ct-dato input{font-size:14px}
+    .ct-grp{font-size:12px;margin:10px 0 4px}
+    .ct-tabla{font-size:12px}
+    .ct-tabla input{font-size:13px;padding:2px 0;font-weight:700}
+    .ct-tabla th,.ct-tabla td{padding:3px 2px}
+    .ct-total{padding:8px 12px;font-size:13px}
+    .ct-total .n{font-size:22px}
+    .ct-foot{display:none}
+
+    /* ---------- Editor de imagen / modales ---------- */
+    .ed-box{padding:14px;max-height:90vh;overflow:auto;width:auto}
+    .ed-box h3{font-size:15px}
+    .ed-box p{font-size:11px}
+
+    /* ---------- Login ---------- */
+    #auth-overlay > div{padding:22px}
+    #auth-overlay h2{font-size:19px}
+  }
+
+  /* ============== MÓVIL ESTRECHO — iPhone SE / Android chico ============== */
+  @media (max-width: 380px){
+    .tab-btn{padding:7px 6px;font-size:12px}
+    .size input{font-size:12px}
+    .size label{font-size:8px}
+    .ct-tabla{font-size:11px}
+    .ct-tabla input{font-size:12px}
+  }
 </style>
 </head>
 <body>
