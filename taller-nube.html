@@ -136,6 +136,7 @@
   </div>
   <div class="user">
     <span id="userEmail"></span>
+    <a href="index.html" style="background:rgba(255,255,255,.18);color:#fff;border:none;padding:5px 10px;border-radius:5px;font-size:12px;cursor:pointer;margin-left:8px;text-decoration:none;display:inline-block">🏠 Pedidos y Cortes</a>
     <button onclick="logout()">Cerrar sesión</button>
   </div>
 </header>
@@ -337,6 +338,8 @@ async function cargarTodo(){
     ops: Array.isArray(p.ops)?p.ops:[],
     photos: p.photos || []
   }));
+  // Orden natural por número de prenda: 1, 2, ..., 9, 10, ..., 15, 15B, 16, ...
+  db.prendas.sort((a,b)=>String(a.no||'').localeCompare(String(b.no||''), undefined, {numeric:true, sensitivity:'base'}));
   db.operarios = op.data;
   db.registros = reg.data.map(r=>({
     id: r.id, fecha: r.fecha,
