@@ -1,0 +1,975 @@
+<!DOCTYPE html>
+<html lang="es-MX">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Taller — Pago a destajo (Nube)</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+  :root{
+    --azul:#1e3a5f; --azul2:#2c5282; --verde:#2f855a; --rojo:#c53030;
+    --gris:#f4f5f7; --gris2:#e2e5ea; --txt:#1a202c; --suave:#718096;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;font-family:"Segoe UI",system-ui,Arial,sans-serif;background:var(--gris);color:var(--txt);font-size:15px}
+  header{background:var(--azul);color:#fff;padding:14px 20px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px}
+  header h1{margin:0;font-size:20px;font-weight:600}
+  header .sub{font-size:13px;opacity:.8;margin-top:2px}
+  header .user{font-size:12px;opacity:.85}
+  header .user button{background:rgba(255,255,255,.18);color:#fff;border:none;padding:5px 10px;border-radius:5px;font-size:12px;cursor:pointer;margin-left:8px}
+  nav{display:flex;flex-wrap:wrap;gap:4px;background:var(--azul2);padding:6px 12px}
+  nav button{background:transparent;color:#cdd9e5;border:none;padding:9px 16px;font-size:14px;cursor:pointer;border-radius:6px}
+  nav button:hover{background:rgba(255,255,255,.12)}
+  nav button.activo{background:#fff;color:var(--azul);font-weight:600}
+  main{max-width:1100px;margin:0 auto;padding:20px}
+  .vista{display:none}
+  .vista.activa{display:block}
+  .card{background:#fff;border:1px solid var(--gris2);border-radius:10px;padding:18px;margin-bottom:16px}
+  h2{margin:0 0 14px;font-size:18px;color:var(--azul)}
+  h3{margin:18px 0 8px;font-size:15px;color:var(--azul2)}
+  label{display:block;font-size:13px;color:var(--suave);margin-bottom:4px;font-weight:600}
+  input,select{width:100%;padding:9px 10px;border:1px solid var(--gris2);border-radius:7px;font-size:14px;font-family:inherit}
+  input:focus,select:focus{outline:none;border-color:var(--azul2)}
+  .fila{display:flex;gap:12px;flex-wrap:wrap;align-items:flex-end}
+  .fila > div{flex:1;min-width:130px}
+  button.btn{background:var(--azul2);color:#fff;border:none;padding:10px 18px;border-radius:7px;font-size:14px;cursor:pointer;font-weight:600;white-space:nowrap}
+  button.btn:hover{background:var(--azul)}
+  button.btn.verde{background:var(--verde)}
+  button.btn.gris{background:#fff;color:var(--azul2);border:1px solid var(--gris2)}
+  button.btn.gris:hover{background:var(--gris)}
+  button.mini{background:transparent;border:none;cursor:pointer;font-size:16px;padding:4px 8px;border-radius:5px;color:var(--suave)}
+  button.mini:hover{background:var(--gris)}
+  button.mini.borrar:hover{background:#fed7d7;color:var(--rojo)}
+  table{width:100%;border-collapse:collapse;margin-top:8px}
+  th,td{text-align:left;padding:9px 10px;border-bottom:1px solid var(--gris2);font-size:14px}
+  th{color:var(--suave);font-size:12px;text-transform:uppercase;letter-spacing:.03em}
+  td.num,th.num{text-align:right;font-variant-numeric:tabular-nums}
+  tr.total td{font-weight:700;border-top:2px solid var(--azul2);font-size:15px}
+  .vacio{color:var(--suave);font-style:italic;padding:14px 0}
+  .dinero{font-weight:700;color:var(--verde)}
+  .aviso{background:#fffbea;border:1px solid #f6e05e;border-radius:8px;padding:10px 14px;font-size:14px;margin-bottom:14px}
+  .acciones-top{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px}
+  details{margin:4px 0}
+  details summary{cursor:pointer;padding:6px 0}
+  .det-tabla{margin:4px 0 12px 18px}
+  .grid-ops{max-height:460px;overflow:auto;border:1px solid var(--gris2);border-radius:8px}
+  .grid-ops table{margin:0}
+  .grid-ops thead th{position:sticky;top:0;background:#fff;z-index:1}
+  .miniatura{width:54px;height:54px;object-fit:cover;border-radius:8px;border:1px solid var(--gris2);background:var(--gris);vertical-align:middle}
+  .sin-foto{width:54px;height:54px;border-radius:8px;border:1px dashed var(--gris2);background:var(--gris);display:inline-flex;align-items:center;justify-content:center;font-size:22px;color:var(--suave)}
+  .foto-grande{max-width:220px;max-height:220px;object-fit:contain;border:1px solid var(--gris2);border-radius:8px;display:block;margin-bottom:10px}
+  .tarjeta-resumen{background:linear-gradient(135deg,#2c5282,#1e3a5f);color:#fff;border-radius:10px;padding:16px 20px;margin-bottom:16px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;box-shadow:0 4px 14px rgba(30,58,95,.25)}
+  .tarjeta-resumen .lbl{font-size:11px;text-transform:uppercase;letter-spacing:.06em;opacity:.85}
+  .tarjeta-resumen .nm{font-size:18px;font-weight:700;text-transform:uppercase;margin-top:2px}
+  .tarjeta-resumen .periodo{font-size:12px;opacity:.85;margin-top:2px}
+  .tarjeta-resumen .v{font-size:24px;font-weight:700;line-height:1}
+  .tarjeta-resumen .v small{font-size:12px;font-weight:500;opacity:.85;display:block;margin-top:3px}
+  .toast{position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:#1e3a5f;color:#fff;padding:10px 18px;border-radius:7px;font-size:13px;z-index:9998;opacity:0;transition:opacity .3s;pointer-events:none}
+  .toast.show{opacity:1}
+  .recibos-print,.ticket-print{display:none}
+  @media print{
+    header,nav,.no-print{display:none!important}
+    .card{border:none;padding:0}
+    body{background:#fff}
+    details>summary{list-style:none}
+    details>summary::-webkit-details-marker{display:none}
+    body.modo-recibos>*:not(.recibos-print){display:none!important}
+    body.modo-recibos .recibos-print{display:block}
+    .recibo{page-break-after:always;padding:24px 32px;color:#1a202c;font-family:"Segoe UI",Arial,sans-serif}
+    .recibo:last-child{page-break-after:auto}
+    .recibo .marca{color:#1e3a5f;font-weight:700;letter-spacing:.05em;margin:0;font-size:20px}
+    .recibo .sub{color:#718096;font-size:13px;margin:4px 0 16px;border-bottom:2px solid #1e3a5f;padding-bottom:8px}
+    .recibo .rec-ope{display:flex;align-items:center;gap:14px;margin:14px 0 18px}
+    .recibo .rec-ope img{width:64px;height:64px;border-radius:50%;object-fit:cover;border:1px solid #ccc}
+    .recibo .rec-ope .sin-foto-rec{width:64px;height:64px;border-radius:50%;border:1px dashed #ccc;display:inline-flex;align-items:center;justify-content:center;font-size:30px;color:#718096}
+    .recibo .rec-ope .lbl{font-size:11px;color:#718096;letter-spacing:.05em;text-transform:uppercase}
+    .recibo .rec-ope .nm{font-size:18px;font-weight:700;text-transform:uppercase}
+    .recibo .prenda-bloque{margin:14px 0;page-break-inside:avoid}
+    .recibo .prenda-titulo{background:#e2e5ea;color:#1e3a5f;font-weight:700;padding:6px 10px;border-left:4px solid #1e3a5f;font-size:14px}
+    .recibo table{width:100%;border-collapse:collapse;margin-top:4px}
+    .recibo th,.recibo td{padding:6px 10px;border-bottom:1px solid #ddd;font-size:13px}
+    .recibo th{background:#f4f5f7;color:#1e3a5f;text-transform:uppercase;font-size:11px;letter-spacing:.04em;text-align:left}
+    .recibo td.num,.recibo th.num{text-align:right;font-variant-numeric:tabular-nums}
+    .recibo tr.tot td{border-top:2px solid #1e3a5f;font-weight:700;font-size:13px;background:#f4f5f7}
+    .recibo .total-grande{margin-top:16px;background:#1e3a5f;color:#fff;padding:12px 18px;border-radius:6px;display:flex;justify-content:space-between;align-items:center;font-size:15px}
+    .recibo .total-grande .v{font-size:22px;font-weight:700}
+    .recibo .firmas{margin-top:48px;display:flex;justify-content:space-between;gap:32px}
+    .recibo .firmas .f{flex:1;text-align:center;border-top:1px solid #555;padding-top:6px;font-size:12px;color:#555}
+    .recibo .entrega{margin-top:24px;font-size:13px;color:#555}
+    body.modo-ticket>*:not(.ticket-print){display:none!important}
+    body.modo-ticket .ticket-print{display:block}
+  }
+</style>
+</head>
+<body>
+
+<!-- ============ LOGIN OVERLAY ============ -->
+<div id="auth-overlay" style="position:fixed;inset:0;background:linear-gradient(135deg,#1e3a5f,#2d5a8c);
+  display:flex;align-items:center;justify-content:center;z-index:9999;padding:20px">
+  <div style="background:#fff;border-radius:14px;padding:32px;max-width:380px;width:100%;
+    box-shadow:0 20px 60px rgba(0,0,0,.4);font-family:'Segoe UI',Arial,sans-serif">
+    <h2 style="margin:0 0 4px;color:#1e3a5f;font-size:22px">🧵 Taller — Pago a destajo ☁</h2>
+    <p style="margin:0 0 18px;color:#64748b;font-size:13px">Inicia sesión para acceder al sistema en la nube.</p>
+    <div style="display:flex;flex-direction:column;gap:10px">
+      <input id="auEmail" type="email" placeholder="Correo electrónico" autocomplete="username"
+        style="border:1px solid #e2e8f0;border-radius:8px;padding:10px 12px;font-size:14px;font-family:inherit">
+      <input id="auPass" type="password" placeholder="Contraseña" autocomplete="current-password"
+        style="border:1px solid #e2e8f0;border-radius:8px;padding:10px 12px;font-size:14px;font-family:inherit">
+      <button onclick="auLogin()"
+        style="background:#e8703a;color:#fff;border:0;border-radius:8px;padding:11px;font-size:14px;font-weight:700;cursor:pointer;font-family:inherit">
+        Entrar</button>
+      <button onclick="auSignup()"
+        style="background:#fff;color:#1e3a5f;border:1px solid #e2e8f0;border-radius:8px;padding:11px;font-size:14px;font-weight:600;cursor:pointer;font-family:inherit">
+        Crear cuenta nueva</button>
+    </div>
+    <p id="auMsg" style="margin:14px 0 0;font-size:13px;color:#dc2626;min-height:18px"></p>
+    <p style="margin:14px 0 0;font-size:11px;color:#94a3b8;text-align:center">
+      ¿Solo quieres editar pedidos? <a href="index.html" style="color:#2c5282">Ir al sistema de pedidos</a>
+    </p>
+  </div>
+</div>
+
+<header>
+  <div>
+    <h1>Taller — Pago a destajo ☁</h1>
+    <div class="sub">Registro de producción y cálculo de nómina semanal</div>
+  </div>
+  <div class="user">
+    <span id="userEmail"></span>
+    <button onclick="logout()">Cerrar sesión</button>
+  </div>
+</header>
+
+<nav>
+  <button data-vista="captura" class="activo">📋 Captura diaria</button>
+  <button data-vista="nomina">💵 Nómina semanal</button>
+  <button data-vista="prendas">👕 Prendas y operaciones</button>
+  <button data-vista="operarios">👥 Operarios</button>
+  <button data-vista="ayuda">ℹ️ Ayuda</button>
+</nav>
+
+<main>
+
+  <!-- ============ CAPTURA ============ -->
+  <section id="captura" class="vista activa">
+    <div class="card">
+      <h2>Capturar trabajo del día</h2>
+      <div class="fila">
+        <div>
+          <label>Fecha</label>
+          <input type="date" id="cap-fecha">
+        </div>
+        <div>
+          <label>Operario</label>
+          <select id="cap-operario"></select>
+        </div>
+        <div>
+          <label>Prenda</label>
+          <select id="cap-prenda"></select>
+        </div>
+        <div>
+          <label>Buscar operación</label>
+          <input id="cap-filtro" placeholder="Escribe para filtrar…" oninput="filtrarOps()">
+        </div>
+      </div>
+      <div id="cap-resumen"></div>
+      <div id="cap-ops"></div>
+    </div>
+
+    <div class="card">
+      <h2>Trabajo registrado <span id="cap-titulo" style="font-weight:400;color:var(--suave);font-size:15px"></span></h2>
+      <div class="acciones-top">
+        <button class="btn" id="cap-modo-dia">Solo este día</button>
+        <button class="btn gris" id="cap-modo-sem">Acumulado de la semana</button>
+      </div>
+      <div id="cap-tabla"></div>
+    </div>
+  </section>
+
+  <!-- ============ NÓMINA ============ -->
+  <section id="nomina" class="vista">
+    <div class="card no-print">
+      <h2>Nómina semanal</h2>
+      <div class="fila">
+        <div><label>Desde</label><input type="date" id="nom-desde"></div>
+        <div><label>Hasta</label><input type="date" id="nom-hasta"></div>
+        <div style="flex:0 0 auto"><button class="btn gris" id="nom-estasem">Esta semana</button></div>
+        <div style="flex:0 0 auto"><button class="btn gris" id="nom-sempas">Semana pasada</button></div>
+        <div style="flex:0 0 auto"><button class="btn" id="nom-calcular">Calcular</button></div>
+      </div>
+    </div>
+    <div class="card">
+      <div class="acciones-top no-print">
+        <button class="btn gris" onclick="window.print()">🖨️ Imprimir resumen</button>
+        <button class="btn verde" id="nom-recibos">🧾 Imprimir recibos por operario</button>
+        <button class="btn gris" id="nom-csv">⬇️ Exportar a Excel (CSV)</button>
+      </div>
+      <h2 id="nom-encabezado">Resultado</h2>
+      <div id="nom-resultado"></div>
+    </div>
+  </section>
+
+  <!-- ============ PRENDAS Y OPERACIONES ============ -->
+  <section id="prendas" class="vista">
+    <div class="card">
+      <h2>Prendas y operaciones</h2>
+      <p style="font-size:14px;color:var(--suave);margin-top:0">
+        Estas son las prendas de tu catálogo (las mismas de Pedidos y Cortes).
+        Haz clic en cualquiera para registrar las <strong>operaciones de pago a destajo</strong> que lleva esa prenda con su tarifa.
+      </p>
+      <input id="pre-buscar" placeholder="Buscar prenda por número o descripción…" oninput="pintarPrendas()" style="margin-bottom:10px">
+      <div id="pre-lista"></div>
+    </div>
+    <div class="card" id="pre-edit-card" style="display:none">
+      <h2>Operaciones de <span id="pre-edit-nombre"></span></h2>
+      <div id="pre-edit-foto"></div>
+      <h3>Agregar una operación a esta prenda</h3>
+      <div class="fila">
+        <div><label>Nombre de la operación</label><input id="preop-nombre" placeholder="Ej. Bastilla"></div>
+        <div style="max-width:160px"><label>Tarifa ($ por pieza)</label><input type="number" id="preop-tarifa" min="0" step="0.01" placeholder="0.00"></div>
+        <div style="flex:0 0 auto"><button class="btn verde" id="preop-agregar">+ Agregar</button></div>
+      </div>
+      <p style="font-size:13px;color:var(--suave);margin:8px 0 0">
+        💡 Tip: si esta prenda lleva las mismas operaciones que otra, usa el botón
+        <button class="btn gris" id="preop-copiar" style="padding:4px 10px;font-size:12px">📋 Copiar de otra prenda</button>
+      </p>
+      <h3>Operaciones registradas</h3>
+      <div id="pre-ops-lista"></div>
+    </div>
+  </section>
+
+  <!-- ============ OPERARIOS ============ -->
+  <section id="operarios" class="vista">
+    <div class="card">
+      <h2>Operarios</h2>
+      <div class="fila">
+        <div><label>Nombre del operario</label><input id="ope-nombre" placeholder="Ej. Juan Pérez"></div>
+        <div style="flex:0 0 auto"><button class="btn verde" id="ope-agregar">+ Agregar operario</button></div>
+      </div>
+      <div id="ope-lista"></div>
+    </div>
+  </section>
+
+  <!-- ============ AYUDA ============ -->
+  <section id="ayuda" class="vista">
+    <div class="card">
+      <h2>¿Cómo usar el sistema?</h2>
+      <ol style="line-height:1.7">
+        <li><strong>👕 Prendas y operaciones</strong> — Para cada prenda agrega las operaciones de costura (nombre + tarifa por pieza). Solo necesitas hacerlo una vez por prenda.</li>
+        <li><strong>👥 Operarios</strong> — Da de alta a las personas que trabajan a destajo.</li>
+        <li><strong>📋 Captura diaria</strong> — Cada vez que un operario termina prendas, eliges fecha → operario → prenda y escribes cuántas piezas hizo de cada operación. Se guarda en la nube automáticamente.</li>
+        <li><strong>💵 Nómina semanal</strong> — Al final de la semana presionas "Esta semana" → Calcular y verás cuánto pagarle a cada uno. Imprime los recibos individuales para entregárselos.</li>
+      </ol>
+      <p style="font-size:13px;color:var(--suave)">Tus datos se sincronizan en la nube y están protegidos con tu cuenta. Las fotos viven en el Storage de Supabase (espacio prácticamente ilimitado).</p>
+    </div>
+  </section>
+
+</main>
+
+<div id="toast" class="toast"></div>
+
+<script>
+/* ============================================================
+   ☁ SUPABASE — cliente
+   ============================================================ */
+const SUPA_URL = 'https://bonpgqhxyzaafzqmpytp.supabase.co';
+const SUPA_KEY = 'sb_publishable_z_xIQry2B2gJw9fn2Y305Q_xowm1a3l';
+const supa = window.supabase.createClient(SUPA_URL, SUPA_KEY);
+
+let USER = null;
+let db = { operarios:[], prendas:[], registros:[] };
+
+function toast(msg){
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  clearTimeout(toast._t);
+  toast._t = setTimeout(()=>t.classList.remove('show'), 2200);
+}
+
+/* ============ AUTH ============ */
+async function auLogin(){
+  const email = document.getElementById('auEmail').value.trim();
+  const pass  = document.getElementById('auPass').value;
+  if(!email || !pass){ auMsg('Llena ambos campos.'); return; }
+  auMsg('Entrando…');
+  const {error} = await supa.auth.signInWithPassword({email, password: pass});
+  if(error){ auMsg(error.message); return; }
+  await postAuthInit();
+}
+async function auSignup(){
+  const email = document.getElementById('auEmail').value.trim();
+  const pass  = document.getElementById('auPass').value;
+  if(!email || pass.length<6){ auMsg('Correo válido y contraseña de mínimo 6 caracteres.'); return; }
+  auMsg('Creando cuenta…');
+  const {error} = await supa.auth.signUp({email, password: pass});
+  if(error){ auMsg(error.message); return; }
+  await postAuthInit();
+}
+function auMsg(m){ document.getElementById('auMsg').textContent = m; }
+async function logout(){ await supa.auth.signOut(); location.reload(); }
+
+async function postAuthInit(){
+  const {data:{user}} = await supa.auth.getUser();
+  USER = user;
+  document.getElementById('userEmail').textContent = user.email;
+  document.getElementById('auth-overlay').style.display = 'none';
+  await cargarTodo();
+  refrescarCaptura();
+  setSemana(0);
+}
+
+/* ============ CARGA DESDE SUPABASE ============ */
+async function cargarTodo(){
+  toast('☁ Cargando…');
+  const [pr, op, reg] = await Promise.all([
+    supa.from('prendas').select('id,no,"desc",ops,photos').eq('in_trash', false).order('no'),
+    supa.from('taller_operarios').select('*').order('nombre'),
+    supa.from('taller_registros').select('*').order('fecha', {ascending:false}).limit(500)
+  ]);
+  if(pr.error){ toast('⚠️ '+pr.error.message); return; }
+  if(op.error){ toast('⚠️ '+op.error.message); return; }
+  if(reg.error){ toast('⚠️ '+reg.error.message); return; }
+  db.prendas = pr.data.map(p=>({
+    id: p.id,
+    nombre: p.desc || ('#'+p.no),
+    no: p.no,
+    ops: Array.isArray(p.ops)?p.ops:[],
+    photos: p.photos || []
+  }));
+  db.operarios = op.data;
+  db.registros = reg.data.map(r=>({
+    id: r.id, fecha: r.fecha,
+    operarioId: r.operario_id, operarioNombre: r.operario_nombre,
+    prendaId: r.prenda_id, prendaNombre: r.prenda_nombre,
+    operacionId: r.operacion_id, operacionNombre: r.operacion_nombre,
+    cantidad: r.cantidad, tarifa: parseFloat(r.tarifa)
+  }));
+  // Generar URLs firmadas para fotos de prendas (primera foto)
+  const paths = [];
+  db.prendas.forEach(p=>{
+    if(p.photos[0] && p.photos[0].path) paths.push(p.photos[0].path);
+  });
+  if(paths.length){
+    const {data} = await supa.storage.from('fotos').createSignedUrls(paths, 60*60*24);
+    const urlMap = {};
+    if(data) data.forEach(d=>{ if(d.signedUrl) urlMap[d.path]=d.signedUrl; });
+    db.prendas.forEach(p=>{
+      if(p.photos[0] && p.photos[0].path && urlMap[p.photos[0].path]) p.foto = urlMap[p.photos[0].path];
+    });
+  }
+  toast('☁ Listas '+db.prendas.length+' prendas · '+db.operarios.length+' operarios');
+}
+
+/* ============ UTILES ============ */
+function id(){ return Date.now().toString(36)+Math.random().toString(36).slice(2,7); }
+function pesos(n){ return "$"+(n||0).toLocaleString("es-MX",{minimumFractionDigits:2,maximumFractionDigits:2}); }
+function hoy(){ return new Date().toISOString().slice(0,10); }
+function esc(s){ return String(s||'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+function fmtFecha(iso){ if(!iso) return ''; const [a,m,d]=iso.split("-"); return `${d}/${m}/${a}`; }
+function descargar(nombre, contenido, tipo){
+  const blob=new Blob([contenido],{type:tipo});
+  const url=URL.createObjectURL(blob);
+  const a=document.createElement("a");
+  a.href=url; a.download=nombre; a.click();
+  URL.revokeObjectURL(url);
+}
+
+/* ============ NAVEGACIÓN ============ */
+document.querySelectorAll("nav button").forEach(b=>{
+  b.onclick=()=>{
+    document.querySelectorAll("nav button").forEach(x=>x.classList.remove("activo"));
+    document.querySelectorAll(".vista").forEach(x=>x.classList.remove("activa"));
+    b.classList.add("activo");
+    document.getElementById(b.dataset.vista).classList.add("activa");
+    if(b.dataset.vista==="captura") refrescarCaptura();
+    if(b.dataset.vista==="prendas") pintarPrendas();
+    if(b.dataset.vista==="operarios") pintarOperarios();
+  };
+});
+
+/* ============ PRENDAS ============ */
+let prendaEdit=null;
+function pintarPrendas(){
+  const c=document.getElementById("pre-lista");
+  if(!db.prendas.length){ c.innerHTML='<div class="vacio">No hay prendas. Agrégalas primero en el sistema de Pedidos.</div>'; return; }
+  const q=(document.getElementById("pre-buscar").value||'').trim().toLowerCase();
+  const filtradas = db.prendas.filter(p=>!q || (p.nombre||'').toLowerCase().includes(q) || String(p.no||'').toLowerCase().includes(q));
+  if(!filtradas.length){ c.innerHTML='<div class="vacio">Sin coincidencias.</div>'; return; }
+  let h='<table><thead><tr><th style="width:64px">Foto</th><th style="width:60px">No</th><th>Prenda</th><th class="num">Operaciones</th><th></th></tr></thead><tbody>';
+  filtradas.forEach(p=>{
+    const n=(p.ops||[]).length;
+    const foto = p.foto
+      ? `<img src="${p.foto}" class="miniatura" alt="">`
+      : `<span class="sin-foto">👕</span>`;
+    h+=`<tr><td>${foto}</td><td>${esc(p.no)}</td>
+        <td><a href="#" onclick="abrirPrenda('${p.id}');return false" style="color:var(--azul2);font-weight:600;text-decoration:none">${esc(p.nombre)}</a></td>
+        <td class="num">${n}</td>
+        <td class="num"><button class="mini" onclick="abrirPrenda('${p.id}')" title="Editar operaciones">✏️</button></td></tr>`;
+  });
+  h+='</tbody></table>';
+  c.innerHTML=h;
+}
+function abrirPrenda(pid){
+  prendaEdit=pid;
+  const p=db.prendas.find(x=>x.id===pid);
+  document.getElementById("pre-edit-nombre").textContent=p.nombre;
+  document.getElementById("pre-edit-card").style.display="block";
+  const fc=document.getElementById("pre-edit-foto");
+  fc.innerHTML = p.foto ? `<img src="${p.foto}" class="foto-grande" alt="">` : '';
+  pintarPrendaOps();
+  document.getElementById("pre-edit-card").scrollIntoView({behavior:"smooth"});
+}
+function pintarPrendaOps(){
+  const p=db.prendas.find(x=>x.id===prendaEdit);
+  const c=document.getElementById("pre-ops-lista");
+  if(!p) return;
+  if(!p.ops || !p.ops.length){
+    c.innerHTML='<div class="vacio">Esta prenda no tiene operaciones todavía. Agrega la primera arriba.</div>';
+    return;
+  }
+  const ops=[...p.ops].sort((a,b)=>(a.nombre||'').localeCompare(b.nombre||''));
+  let h='<table><thead><tr><th>Operación</th><th class="num">Tarifa</th><th></th></tr></thead><tbody>';
+  ops.forEach(o=>{
+    h+=`<tr><td>${esc(o.nombre)}</td><td class="num">${pesos(o.tarifa)}</td>
+        <td class="num">
+          <button class="mini" onclick="editarPrendaOp('${o.id}')" title="Editar">✏️</button>
+          <button class="mini borrar" onclick="borrarPrendaOp('${o.id}')" title="Borrar">🗑️</button>
+        </td></tr>`;
+  });
+  h+=`</tbody></table><p style="color:var(--suave);font-size:13px">${p.ops.length} operación(es) en esta prenda</p>`;
+  c.innerHTML=h;
+}
+async function guardarPrendaOps(p){
+  const {error} = await supa.from('prendas').update({ops: p.ops}).eq('id', p.id);
+  if(error){ toast('⚠️ '+error.message); return false; }
+  toast('☁ Guardado');
+  return true;
+}
+document.getElementById("preop-agregar").onclick=async ()=>{
+  if(!prendaEdit) return alert("Primero abre una prenda haciendo clic en su nombre.");
+  const n=document.getElementById("preop-nombre").value.trim();
+  const t=parseFloat(document.getElementById("preop-tarifa").value);
+  if(!n) return alert("Escribe el nombre de la operación.");
+  if(isNaN(t)||t<0) return alert("Escribe una tarifa válida.");
+  const p=db.prendas.find(x=>x.id===prendaEdit);
+  if(!p.ops) p.ops=[];
+  p.ops.push({id:id(), nombre:n, tarifa:t});
+  const ok = await guardarPrendaOps(p);
+  if(ok){
+    document.getElementById("preop-nombre").value="";
+    document.getElementById("preop-tarifa").value="";
+    pintarPrendaOps();
+    pintarPrendas();
+  } else {
+    p.ops.pop();
+  }
+};
+async function editarPrendaOp(oid){
+  const p=db.prendas.find(x=>x.id===prendaEdit);
+  const o=(p.ops||[]).find(x=>x.id===oid);
+  if(!o) return;
+  const nuevoN=prompt("Nombre de la operación:", o.nombre);
+  if(nuevoN===null) return;
+  const nuevaT=prompt("Tarifa ($ por pieza):", o.tarifa);
+  if(nuevaT===null) return;
+  const t=parseFloat(nuevaT);
+  if(isNaN(t)||t<0) return alert("Tarifa no válida.");
+  const oldN=o.nombre, oldT=o.tarifa;
+  o.nombre=nuevoN.trim()||o.nombre; o.tarifa=t;
+  const ok = await guardarPrendaOps(p);
+  if(ok) pintarPrendaOps();
+  else { o.nombre=oldN; o.tarifa=oldT; }
+}
+async function borrarPrendaOp(oid){
+  const p=db.prendas.find(x=>x.id===prendaEdit);
+  const usos=db.registros.filter(r=>r.operacionId===oid).length;
+  if(usos) return alert("No se puede borrar: esta operación tiene "+usos+" registro(s) de producción.");
+  if(!confirm("¿Borrar esta operación de la prenda?")) return;
+  const original=p.ops;
+  p.ops=p.ops.filter(x=>x.id!==oid);
+  const ok = await guardarPrendaOps(p);
+  if(ok){ pintarPrendaOps(); pintarPrendas(); }
+  else { p.ops=original; }
+}
+document.getElementById("preop-copiar").onclick=async ()=>{
+  if(!prendaEdit) return;
+  const conOps = db.prendas.filter(p=>p.id!==prendaEdit && p.ops && p.ops.length);
+  if(!conOps.length) return alert("No hay otras prendas con operaciones para copiar.");
+  const opciones = conOps.map((p,i)=>`${i+1}. ${p.nombre} (${p.ops.length} ops)`).join('\n');
+  const sel = prompt("¿De qué prenda quieres copiar las operaciones?\n\n"+opciones+"\n\nEscribe el número:");
+  if(!sel) return;
+  const idx = parseInt(sel,10)-1;
+  if(idx<0 || idx>=conOps.length) return alert("Opción inválida.");
+  const src = conOps[idx];
+  if(!confirm(`Se copiarán ${src.ops.length} operación(es) desde "${src.nombre}". Las que ya existen no se sobrescribirán. ¿Continuar?`)) return;
+  const dst = db.prendas.find(p=>p.id===prendaEdit);
+  if(!dst.ops) dst.ops=[];
+  const existentes = new Set(dst.ops.map(o=>o.nombre.toLowerCase()));
+  let nuevas=0;
+  src.ops.forEach(o=>{
+    if(!existentes.has((o.nombre||'').toLowerCase())){
+      dst.ops.push({id:id(), nombre:o.nombre, tarifa:o.tarifa});
+      nuevas++;
+    }
+  });
+  if(!nuevas) return alert("Todas las operaciones ya existían.");
+  const ok = await guardarPrendaOps(dst);
+  if(ok){
+    pintarPrendaOps(); pintarPrendas();
+    alert(`Listo: se copiaron ${nuevas} operación(es).`);
+  }
+};
+
+/* ============ OPERARIOS ============ */
+document.getElementById("ope-agregar").onclick=async ()=>{
+  const n=document.getElementById("ope-nombre").value.trim();
+  if(!n) return alert("Escribe el nombre del operario.");
+  const {data, error} = await supa.from('taller_operarios').insert({nombre:n}).select().single();
+  if(error){ alert(error.message); return; }
+  db.operarios.push(data);
+  db.operarios.sort((a,b)=>a.nombre.localeCompare(b.nombre));
+  document.getElementById("ope-nombre").value="";
+  pintarOperarios();
+  refrescarCaptura();
+  toast('☁ Operario agregado');
+};
+function pintarOperarios(){
+  const c=document.getElementById("ope-lista");
+  if(!db.operarios.length){ c.innerHTML='<div class="vacio">No hay operarios todavía.</div>'; return; }
+  let h='<table><thead><tr><th>Operario</th><th></th></tr></thead><tbody>';
+  db.operarios.forEach(o=>{
+    h+=`<tr><td>${esc(o.nombre)}</td>
+        <td class="num">
+          <button class="mini" onclick="editarOperario('${o.id}')" title="Editar">✏️</button>
+          <button class="mini borrar" onclick="borrarOperario('${o.id}')" title="Borrar">🗑️</button>
+        </td></tr>`;
+  });
+  h+='</tbody></table>';
+  c.innerHTML=h;
+}
+async function editarOperario(oid){
+  const o=db.operarios.find(x=>x.id===oid);
+  const n=prompt("Nombre del operario:", o.nombre);
+  if(n===null) return;
+  const nuevo=(n||'').trim()||o.nombre;
+  const {error} = await supa.from('taller_operarios').update({nombre:nuevo}).eq('id', oid);
+  if(error){ alert(error.message); return; }
+  o.nombre = nuevo;
+  pintarOperarios(); refrescarCaptura();
+  toast('☁ Operario actualizado');
+}
+async function borrarOperario(oid){
+  const usos=db.registros.filter(r=>r.operarioId===oid).length;
+  if(usos) return alert("No se puede borrar: este operario tiene "+usos+" registro(s) de producción.");
+  if(!confirm("¿Borrar este operario?")) return;
+  const {error} = await supa.from('taller_operarios').delete().eq('id', oid);
+  if(error){ alert(error.message); return; }
+  db.operarios=db.operarios.filter(x=>x.id!==oid);
+  pintarOperarios(); refrescarCaptura();
+  toast('☁ Operario borrado');
+}
+
+/* ============ CAPTURA ============ */
+const capFecha=document.getElementById("cap-fecha");
+const capOperario=document.getElementById("cap-operario");
+const capPrenda=document.getElementById("cap-prenda");
+capFecha.value=hoy();
+
+function refrescarCaptura(){
+  const opAnt=capOperario.value;
+  capOperario.innerHTML = `<option value="">— elige operario —</option>` +
+    db.operarios.map(o=>`<option value="${o.id}">${esc(o.nombre)}</option>`).join("");
+  capOperario.value=opAnt;
+  const prAnt=capPrenda.value;
+  capPrenda.innerHTML='<option value="">— elige prenda —</option>'+
+    db.prendas.map(p=>`<option value="${p.id}">${esc(p.nombre)}</option>`).join("");
+  capPrenda.value=prAnt;
+  pintarOpsCaptura();
+  pintarCapturaTabla();
+  pintarResumenSemanal();
+}
+capOperario.addEventListener("change", ()=>{ pintarOpsCaptura(); pintarCapturaTabla(); pintarResumenSemanal(); });
+capPrenda.addEventListener("change", pintarOpsCaptura);
+capFecha.onchange=()=>{ pintarCapturaTabla(); pintarResumenSemanal(); };
+
+function pintarResumenSemanal(){
+  const c=document.getElementById("cap-resumen");
+  const opId = capOperario.value;
+  if(!opId){ c.innerHTML=''; return; }
+  const ope = db.operarios.find(x=>x.id===opId);
+  const fecha = capFecha.value || hoy();
+  const [lun,dom]=semanaDe(fecha);
+  const regs = db.registros.filter(r=>r.operarioId===opId && r.fecha>=lun && r.fecha<=dom);
+  let piezas=0, total=0;
+  regs.forEach(r=>{ piezas+=r.cantidad; total+=r.cantidad*r.tarifa; });
+  c.innerHTML = `
+    <div class="tarjeta-resumen">
+      <div>
+        <div class="lbl">Acumulado de la semana</div>
+        <div class="nm">${esc(ope.nombre)}</div>
+        <div class="periodo">${fmtFecha(lun)} al ${fmtFecha(dom)}</div>
+      </div>
+      <div style="text-align:right">
+        <div class="v">${pesos(total)}<small>${piezas} pieza(s) · ${regs.length} registro(s)</small></div>
+      </div>
+    </div>`;
+}
+
+function pintarOpsCaptura(){
+  const c=document.getElementById("cap-ops");
+  const operarioId=capOperario.value;
+  if(!operarioId){
+    c.innerHTML='<div class="vacio">Elige un operario para capturar su trabajo.</div>';
+    return;
+  }
+  if(!db.prendas.length){
+    c.innerHTML='<div class="vacio">No hay prendas en tu catálogo.</div>';
+    return;
+  }
+  const prenda=db.prendas.find(p=>p.id===capPrenda.value);
+  if(!prenda){
+    c.innerHTML='<div class="vacio">Elige una <strong>prenda</strong> para ver las operaciones que se le pueden hacer.</div>';
+    return;
+  }
+  const ops=[...(prenda.ops||[])].sort((a,b)=>(a.nombre||'').localeCompare(b.nombre||''));
+  if(!ops.length){
+    c.innerHTML='<div class="vacio">La prenda "'+esc(prenda.nombre)+'" no tiene operaciones. Agrégalas en la pestaña "Prendas y operaciones".</div>';
+    return;
+  }
+  const ope=db.operarios.find(x=>x.id===operarioId);
+  let h='';
+  h+=`<div style="margin:8px 0 6px"><strong style="font-size:16px">${esc(ope.nombre)} · ${esc(prenda.nombre)}</strong></div>`;
+  if(prenda.foto) h+=`<img src="${prenda.foto}" class="foto-grande" alt="${esc(prenda.nombre)}">`;
+  h+='<h3>Escribe las piezas hechas en cada operación</h3>';
+  h+='<div class="grid-ops"><table><thead><tr><th>Operación</th><th class="num">Tarifa</th><th class="num" style="width:120px">Cantidad</th><th class="num">Subtotal</th></tr></thead><tbody>';
+  ops.forEach(o=>{
+    h+=`<tr class="op-row" data-nombre="${esc(o.nombre).toLowerCase()}"><td>${esc(o.nombre)}</td><td class="num">${pesos(o.tarifa)}</td>
+        <td class="num"><input type="number" min="0" step="1" class="cap-cant" data-op="${o.id}" data-tarifa="${o.tarifa}" style="text-align:right" placeholder="0" oninput="recalcCaptura()"></td>
+        <td class="num cap-sub" data-op="${o.id}">$0.00</td></tr>`;
+  });
+  h+='</tbody></table></div>';
+  h+=`<div style="display:flex;justify-content:space-between;align-items:center;margin-top:14px;flex-wrap:wrap;gap:10px">
+        <button class="btn verde" id="cap-guardar">💾 Guardar trabajo</button>
+        <div style="font-size:16px">Total a agregar: <span class="dinero" id="cap-total-nuevo">$0.00</span></div>
+      </div>`;
+  c.innerHTML=h;
+  document.getElementById("cap-guardar").onclick=guardarCaptura;
+  filtrarOps();
+}
+function filtrarOps(){
+  const q=(document.getElementById("cap-filtro").value||"").trim().toLowerCase();
+  document.querySelectorAll(".op-row").forEach(r=>{
+    r.style.display = !q || r.dataset.nombre.includes(q) ? "" : "none";
+  });
+}
+function recalcCaptura(){
+  let total=0;
+  document.querySelectorAll(".cap-cant").forEach(inp=>{
+    const cant=parseInt(inp.value,10)||0;
+    const tarifa=parseFloat(inp.dataset.tarifa)||0;
+    const sub=cant*tarifa; total+=sub;
+    document.querySelector('.cap-sub[data-op="'+inp.dataset.op+'"]').textContent=pesos(sub);
+  });
+  const t=document.getElementById("cap-total-nuevo");
+  if(t) t.textContent=pesos(total);
+}
+async function guardarCaptura(){
+  const fecha=capFecha.value;
+  const operarioId=capOperario.value;
+  const prendaId=capPrenda.value;
+  if(!fecha) return alert("Elige la fecha.");
+  if(!operarioId) return alert("Elige el operario.");
+  if(!prendaId) return alert("Elige la prenda.");
+  const ope=db.operarios.find(x=>x.id===operarioId);
+  const pre=db.prendas.find(x=>x.id===prendaId);
+  const filas=[];
+  document.querySelectorAll(".cap-cant").forEach(inp=>{
+    const cant=parseInt(inp.value,10)||0;
+    if(cant<=0) return;
+    const op=(pre.ops||[]).find(x=>x.id===inp.dataset.op);
+    if(!op) return;
+    filas.push({
+      fecha,
+      operario_id: ope.id, operario_nombre: ope.nombre,
+      prenda_id: pre.id, prenda_nombre: pre.nombre,
+      operacion_id: op.id, operacion_nombre: op.nombre,
+      cantidad: cant, tarifa: op.tarifa
+    });
+  });
+  if(!filas.length) return alert("Escribe la cantidad en al menos una operación.");
+  const btn=document.getElementById("cap-guardar"); btn.disabled=true; btn.textContent='Guardando…';
+  const {data, error} = await supa.from('taller_registros').insert(filas).select();
+  btn.disabled=false; btn.textContent='💾 Guardar trabajo';
+  if(error){ alert(error.message); return; }
+  data.forEach(r=>{
+    db.registros.unshift({
+      id:r.id, fecha:r.fecha,
+      operarioId:r.operario_id, operarioNombre:r.operario_nombre,
+      prendaId:r.prenda_id, prendaNombre:r.prenda_nombre,
+      operacionId:r.operacion_id, operacionNombre:r.operacion_nombre,
+      cantidad:r.cantidad, tarifa:parseFloat(r.tarifa)
+    });
+  });
+  toast('☁ Guardado en la nube');
+  pintarOpsCaptura();
+  pintarCapturaTabla();
+  pintarResumenSemanal();
+}
+
+let capModo="dia";
+function setCapModo(m){
+  capModo=m;
+  document.getElementById("cap-modo-dia").className = "btn"+(m==="dia"?"":" gris");
+  document.getElementById("cap-modo-sem").className = "btn"+(m==="semana"?"":" gris");
+  pintarCapturaTabla();
+}
+document.getElementById("cap-modo-dia").onclick=()=>setCapModo("dia");
+document.getElementById("cap-modo-sem").onclick=()=>setCapModo("semana");
+
+function semanaDe(iso){
+  const d=new Date(iso+"T00:00:00");
+  const dia=(d.getDay()+6)%7;
+  const lun=new Date(d); lun.setDate(d.getDate()-dia);
+  const dom=new Date(lun); dom.setDate(lun.getDate()+6);
+  return [fechaISO(lun), fechaISO(dom)];
+}
+function fechaISO(d){ return d.toISOString().slice(0,10); }
+
+function pintarCapturaTabla(){
+  const fecha=capFecha.value;
+  const operarioId=capOperario.value;
+  const ope=db.operarios.find(o=>o.id===operarioId);
+  const t=document.getElementById("cap-titulo");
+  const c=document.getElementById("cap-tabla");
+  const semana = capModo==="semana";
+  let regs;
+  if(semana){
+    const [lun,dom]=semanaDe(fecha||hoy());
+    regs=db.registros.filter(r=>r.fecha>=lun && r.fecha<=dom);
+    t.textContent="— semana "+fmtFecha(lun)+" al "+fmtFecha(dom)+(ope?(" · "+ope.nombre):" · todos");
+  } else {
+    regs=db.registros.filter(r=>r.fecha===fecha);
+    t.textContent = fecha ? ("— "+fmtFecha(fecha)+(ope?(" · "+ope.nombre):" · todos")) : "";
+  }
+  if(operarioId) regs=regs.filter(r=>r.operarioId===operarioId);
+  if(!regs.length){ c.innerHTML='<div class="vacio">Sin registros'+(semana?" en esta semana":" para este día")+'.</div>'; return; }
+  regs=[...regs].sort((a,b)=> a.fecha.localeCompare(b.fecha) || (a.operarioNombre||'').localeCompare(b.operarioNombre||''));
+  let total=0;
+  let h='<table><thead><tr>'+(semana?'<th>Fecha</th>':'')+'<th>Operario</th><th>Prenda</th><th>Operación</th><th class="num">Cant.</th><th class="num">Tarifa</th><th class="num">Subtotal</th><th></th></tr></thead><tbody>';
+  regs.forEach(r=>{
+    const sub=r.cantidad*r.tarifa; total+=sub;
+    h+=`<tr>${semana?`<td>${fmtFecha(r.fecha)}</td>`:''}<td>${esc(r.operarioNombre)}</td><td>${esc(r.prendaNombre)}</td><td>${esc(r.operacionNombre)}</td>
+        <td class="num">${r.cantidad}</td><td class="num">${pesos(r.tarifa)}</td><td class="num">${pesos(sub)}</td>
+        <td class="num">
+          <button class="mini" onclick="imprimirRegistro('${r.id}')" title="Imprimir comprobante completo">🖨️</button>
+          <button class="mini borrar" onclick="borrarRegistro('${r.id}')" title="Borrar">🗑️</button>
+        </td></tr>`;
+  });
+  h+=`<tr class="total"><td colspan="${semana?6:5}">TOTAL${semana?" DE LA SEMANA":""}</td><td class="num">${pesos(total)}</td><td></td></tr>`;
+  h+='</tbody></table>';
+  c.innerHTML=h;
+}
+async function borrarRegistro(rid){
+  if(!confirm("¿Borrar este registro?")) return;
+  const {error} = await supa.from('taller_registros').delete().eq('id', rid);
+  if(error){ alert(error.message); return; }
+  db.registros=db.registros.filter(x=>x.id!==rid);
+  pintarCapturaTabla(); pintarResumenSemanal();
+  toast('☁ Borrado');
+}
+
+function imprimirRegistro(rid){
+  const r=db.registros.find(x=>x.id===rid);
+  if(!r) return;
+  const semana = capModo==="semana";
+  let regs, periodo;
+  if(semana){
+    const [lun,dom]=semanaDe(r.fecha);
+    regs=db.registros.filter(x=>x.operarioId===r.operarioId && x.fecha>=lun && x.fecha<=dom);
+    periodo=`Semana ${fmtFecha(lun)} al ${fmtFecha(dom)}`;
+  } else {
+    regs=db.registros.filter(x=>x.operarioId===r.operarioId && x.fecha===r.fecha);
+    periodo=`Día ${fmtFecha(r.fecha)}`;
+  }
+  if(!regs.length) return;
+  const prendas={};
+  let totalPiezas=0, totalDinero=0;
+  regs.forEach(x=>{
+    const pn = x.prendaNombre || "Sin prenda";
+    if(!prendas[pn]) prendas[pn]={piezas:0, total:0, ops:{}};
+    const p=prendas[pn];
+    const sub=x.cantidad*x.tarifa;
+    p.piezas+=x.cantidad; p.total+=sub;
+    if(!p.ops[x.operacionNombre]) p.ops[x.operacionNombre]={piezas:0, tarifa:x.tarifa, total:0};
+    p.ops[x.operacionNombre].piezas+=x.cantidad;
+    p.ops[x.operacionNombre].total+=sub;
+    totalPiezas+=x.cantidad; totalDinero+=sub;
+  });
+  let cuerpo="";
+  Object.entries(prendas).sort((a,b)=>a[0].localeCompare(b[0])).forEach(([pn,p])=>{
+    cuerpo+=`<div class="prenda-bloque"><div class="prenda-titulo">👕 ${esc(pn)}</div>
+      <table><thead><tr><th>Operación</th><th class="num">Piezas</th><th class="num">Tarifa</th><th class="num">Subtotal</th></tr></thead><tbody>`;
+    Object.entries(p.ops).forEach(([opn,d])=>{
+      cuerpo+=`<tr><td>${esc(opn)}</td><td class="num">${d.piezas}</td><td class="num">${pesos(d.tarifa)}</td><td class="num">${pesos(d.total)}</td></tr>`;
+    });
+    cuerpo+=`<tr class="tot"><td>SUBTOTAL ${esc(pn)}</td><td class="num">${p.piezas}</td><td></td><td class="num">${pesos(p.total)}</td></tr></tbody></table></div>`;
+  });
+  let cont=document.getElementById('ticket-print');
+  if(!cont){ cont=document.createElement('div'); cont.id='ticket-print'; cont.className='ticket-print'; document.body.appendChild(cont); }
+  cont.innerHTML=`
+    <section class="recibo">
+      <h1 class="marca">MAQUILA</h1>
+      <div class="sub">Comprobante de trabajo · ${periodo}</div>
+      <div class="rec-ope"><span class="sin-foto-rec">👤</span><div><div class="lbl">Operario</div><div class="nm">${esc(r.operarioNombre)}</div></div></div>
+      ${cuerpo}
+      <div class="total-grande"><span>TOTAL (${totalPiezas} piezas)</span><span class="v">${pesos(totalDinero)}</span></div>
+      <div class="firmas"><div class="f">Firma del operario</div><div class="f">Firma del encargado</div></div>
+      <div class="entrega">Fecha de entrega: ____ / ____ / ________</div>
+    </section>
+  `;
+  document.body.classList.add('modo-ticket');
+  window.print();
+  setTimeout(()=>document.body.classList.remove('modo-ticket'),800);
+}
+
+/* ============ NÓMINA ============ */
+function lunesDeEsta(offset=0){
+  const d=new Date(); d.setDate(d.getDate()+offset*7);
+  const dia=(d.getDay()+6)%7;
+  d.setDate(d.getDate()-dia);
+  return d;
+}
+function setSemana(offset){
+  const lun=lunesDeEsta(offset);
+  const dom=new Date(lun); dom.setDate(dom.getDate()+6);
+  document.getElementById("nom-desde").value=fechaISO(lun);
+  document.getElementById("nom-hasta").value=fechaISO(dom);
+  if(document.getElementById('nomina').classList.contains('activa')) calcularNomina();
+}
+document.getElementById("nom-estasem").onclick=()=>setSemana(0);
+document.getElementById("nom-sempas").onclick=()=>setSemana(-1);
+document.getElementById("nom-calcular").onclick=calcularNomina;
+
+let nominaActual=null;
+async function calcularNomina(){
+  const desde=document.getElementById("nom-desde").value;
+  const hasta=document.getElementById("nom-hasta").value;
+  if(!desde||!hasta) return alert("Elige el rango de fechas.");
+  if(desde>hasta) return alert("La fecha 'Desde' no puede ser mayor que 'Hasta'.");
+  // Asegurarnos de tener todos los registros del rango (la carga inicial fue limit 500)
+  const {data:masRegs, error} = await supa.from('taller_registros')
+    .select('*').gte('fecha', desde).lte('fecha', hasta);
+  if(error){ alert(error.message); return; }
+  const regs = masRegs.map(r=>({
+    id:r.id, fecha:r.fecha,
+    operarioId:r.operario_id, operarioNombre:r.operario_nombre,
+    prendaId:r.prenda_id, prendaNombre:r.prenda_nombre,
+    operacionId:r.operacion_id, operacionNombre:r.operacion_nombre,
+    cantidad:r.cantidad, tarifa:parseFloat(r.tarifa)
+  }));
+  document.getElementById("nom-encabezado").textContent="Nómina del "+fmtFecha(desde)+" al "+fmtFecha(hasta);
+  const c=document.getElementById("nom-resultado");
+  if(!regs.length){ c.innerHTML='<div class="vacio">No hay producción registrada en este periodo.</div>'; nominaActual=null; return; }
+  const porOpe={};
+  regs.forEach(r=>{
+    if(!porOpe[r.operarioId]) porOpe[r.operarioId]={id:r.operarioId, nombre:r.operarioNombre, piezas:0, total:0, prendas:{}};
+    const o=porOpe[r.operarioId];
+    o.piezas+=r.cantidad; o.total+=r.cantidad*r.tarifa;
+    const pn = r.prendaNombre || "Sin prenda";
+    if(!o.prendas[pn]) o.prendas[pn]={piezas:0, total:0, detalle:{}};
+    const pr=o.prendas[pn];
+    pr.piezas+=r.cantidad; pr.total+=r.cantidad*r.tarifa;
+    if(!pr.detalle[r.operacionNombre]) pr.detalle[r.operacionNombre]={piezas:0, tarifa:r.tarifa, total:0};
+    pr.detalle[r.operacionNombre].piezas+=r.cantidad;
+    pr.detalle[r.operacionNombre].total+=r.cantidad*r.tarifa;
+  });
+  const lista=Object.values(porOpe).sort((a,b)=>a.nombre.localeCompare(b.nombre));
+  let granTotal=0, granPiezas=0;
+  let h='<table><thead><tr><th>Operario</th><th class="num">Piezas</th><th class="num">A pagar</th></tr></thead><tbody>';
+  lista.forEach(o=>{
+    granTotal+=o.total; granPiezas+=o.piezas;
+    let det='';
+    Object.entries(o.prendas).sort((a,b)=>a[0].localeCompare(b[0])).forEach(([nombrePrenda, pr])=>{
+      det+=`<div style="margin:10px 0 4px"><strong style="color:var(--azul)">👕 ${esc(nombrePrenda)}</strong> <span style="color:var(--suave);font-size:13px">— ${pr.piezas} piezas · ${pesos(pr.total)}</span></div>`;
+      det+='<table class="det-tabla"><thead><tr><th>Operación</th><th class="num">Piezas</th><th class="num">Tarifa</th><th class="num">Subtotal</th></tr></thead><tbody>';
+      Object.entries(pr.detalle).forEach(([k,d])=>{
+        det+=`<tr><td>${esc(k)}</td><td class="num">${d.piezas}</td><td class="num">${pesos(d.tarifa)}</td><td class="num">${pesos(d.total)}</td></tr>`;
+      });
+      det+='</tbody></table>';
+    });
+    h+=`<tr><td><details><summary><strong>${esc(o.nombre)}</strong></summary>${det}</details></td>
+        <td class="num">${o.piezas}</td><td class="num dinero">${pesos(o.total)}</td></tr>`;
+  });
+  h+=`<tr class="total"><td>TOTAL A PAGAR (${lista.length} operarios)</td><td class="num">${granPiezas}</td><td class="num">${pesos(granTotal)}</td></tr>`;
+  h+='</tbody></table>';
+  c.innerHTML=h;
+  nominaActual={desde,hasta,lista,granTotal,granPiezas};
+}
+
+document.getElementById("nom-csv").onclick=()=>{
+  if(!nominaActual) return alert("Primero calcula una nómina.");
+  let csv="Operario,Prenda,Operacion,Piezas,Tarifa,Subtotal\n";
+  nominaActual.lista.forEach(o=>{
+    Object.entries(o.prendas).forEach(([pn, pr])=>{
+      Object.entries(pr.detalle).forEach(([k,d])=>{
+        csv+=`"${o.nombre}","${pn}","${k}",${d.piezas},${d.tarifa},${(d.total).toFixed(2)}\n`;
+      });
+      csv+=`"${o.nombre}","${pn}","SUBTOTAL ${pn}",${pr.piezas},,${pr.total.toFixed(2)}\n`;
+    });
+    csv+=`"${o.nombre}","","TOTAL OPERARIO",${o.piezas},,${o.total.toFixed(2)}\n`;
+  });
+  csv+=`"TOTAL GENERAL","","",${nominaActual.granPiezas},,${nominaActual.granTotal.toFixed(2)}\n`;
+  descargar("nomina_"+nominaActual.desde+"_a_"+nominaActual.hasta+".csv", "﻿"+csv, "text/csv");
+};
+
+document.getElementById("nom-recibos").onclick=()=>{
+  if(!nominaActual) return alert("Primero calcula una nómina.");
+  let cont=document.getElementById("recibos-print");
+  if(!cont){ cont=document.createElement('div'); cont.id='recibos-print'; cont.className='recibos-print'; document.body.appendChild(cont); }
+  const periodo=fmtFecha(nominaActual.desde)+" al "+fmtFecha(nominaActual.hasta);
+  let h="";
+  nominaActual.lista.forEach(o=>{
+    let cuerpo="";
+    Object.entries(o.prendas).sort((a,b)=>a[0].localeCompare(b[0])).forEach(([nombrePrenda, pr])=>{
+      cuerpo+=`<div class="prenda-bloque"><div class="prenda-titulo">👕 ${esc(nombrePrenda)}</div>
+        <table><thead><tr><th>Operación</th><th class="num">Piezas</th><th class="num">Tarifa</th><th class="num">Subtotal</th></tr></thead><tbody>`;
+      Object.entries(pr.detalle).forEach(([k,d])=>{
+        cuerpo+=`<tr><td>${esc(k)}</td><td class="num">${d.piezas}</td><td class="num">${pesos(d.tarifa)}</td><td class="num">${pesos(d.total)}</td></tr>`;
+      });
+      cuerpo+=`<tr class="tot"><td>SUBTOTAL ${esc(nombrePrenda)}</td><td class="num">${pr.piezas}</td><td></td><td class="num">${pesos(pr.total)}</td></tr>`;
+      cuerpo+=`</tbody></table></div>`;
+    });
+    h+=`<section class="recibo">
+      <h1 class="marca">MAQUILA</h1>
+      <div class="sub">Recibo de pago a destajo · Semana ${periodo}</div>
+      <div class="rec-ope"><span class="sin-foto-rec">👤</span><div><div class="lbl">Operario</div><div class="nm">${esc(o.nombre)}</div></div></div>
+      ${cuerpo}
+      <div class="total-grande"><span>TOTAL A PAGAR (${o.piezas} piezas)</span><span class="v">${pesos(o.total)}</span></div>
+      <div class="firmas"><div class="f">Firma del operario</div><div class="f">Firma del encargado</div></div>
+      <div class="entrega">Fecha de entrega: ____ / ____ / ________</div>
+    </section>`;
+  });
+  cont.innerHTML=h;
+  document.body.classList.add('modo-recibos');
+  window.print();
+  setTimeout(()=>document.body.classList.remove('modo-recibos'), 800);
+};
+
+window.addEventListener('beforeprint', ()=>{
+  if(document.body.classList.contains('modo-recibos') || document.body.classList.contains('modo-ticket')) return;
+  document.querySelectorAll('#nom-resultado details').forEach(d=>{ d._wasOpen=d.open; d.open=true; });
+});
+window.addEventListener('afterprint', ()=>{
+  document.querySelectorAll('#nom-resultado details').forEach(d=>{
+    if('_wasOpen' in d){ if(!d._wasOpen) d.open=false; delete d._wasOpen; }
+  });
+});
+
+/* ============ INICIO ============ */
+supa.auth.getSession().then(({data:{session}})=>{
+  if(session) postAuthInit();
+});
+</script>
+</body>
+</html>
