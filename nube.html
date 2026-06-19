@@ -221,7 +221,12 @@
     border-bottom:3px solid var(--acento);padding-bottom:12px;margin-bottom:18px}
   .ct-head .ttl small{display:block;font-size:11px;letter-spacing:2px;color:var(--gris);
     text-transform:uppercase}
-  .ct-head .ttl h2{margin:2px 0 0;font-size:28px;color:var(--acento);line-height:1.05}
+  .ct-head .ttl h2{margin:2px 0 0;font-size:28px;color:var(--acento);line-height:1.15}
+  .ct-no-chip{display:inline-block;background:var(--azul);color:#fff;border-radius:8px;
+    padding:2px 12px;font-size:20px;font-weight:800;letter-spacing:.5px;margin-right:8px;
+    vertical-align:middle}
+  .ct-dato-val{font-size:18px;font-weight:600;border-bottom:1px solid var(--ct-line);
+    padding-bottom:4px;min-height:26px}
   .ct-head .folio{font-size:12px;color:var(--gris);text-align:right;min-width:180px}
   .ct-head .folio b{font-size:14px;color:#1f2937}
   .ct-mid{margin-bottom:14px;display:grid;grid-template-columns:1fr 1fr;gap:0 30px}
@@ -526,7 +531,6 @@
         <span>↓</span></div>
     </div>
     <div class="ed-ctrls">
-      <button onclick="edRotate()">↻ Girar</button>
       <button onclick="edReset()">⟲ Reiniciar</button>
     </div>
     <div class="ed-actions">
@@ -718,8 +722,13 @@ function sizeGroup(it,i,keys,cls,color,title){
 }
 
 function imgStyle(p){
+  // Translate proporcional al zoom: con scale=1 no se mueve;
+  // con scale>1 los sliders de pos mueven la imagen aunque cover ya la haya recortado.
+  const range = (p.scale - 1) / p.scale * 50;
+  const tx = (50 - p.posX) / 50 * range;
+  const ty = (50 - p.posY) / 50 * range;
   return `object-fit:cover;width:100%;height:100%;object-position:${p.posX}% ${p.posY}%;`+
-    `transform:rotate(${p.rot}deg) scale(${p.scale});transform-origin:center;`;
+    `transform:translate(${tx}%, ${ty}%) scale(${p.scale}) rotate(${p.rot}deg);transform-origin:center;`;
 }
 function photoSlot(it,i,slot){
   const p=it.photos[slot];
@@ -1242,7 +1251,7 @@ function ctRender(){
       <div class="ct-head">
         <div class="ttl">
           <small>Modelo / referencia</small>
-          <h2>${esc(p.desc)||'(sin nombre)'}</h2>
+          <h2>${p.no?`<span class="ct-no-chip">No. ${esc(p.no)}</span> `:''}${esc(p.desc)||'(sin nombre)'}</h2>
           ${(p.cliente||p.pedido)?`<div style="margin-top:6px;font-size:16px;font-weight:600">👤 ${esc(p.cliente)||'—'}${p.pedido?` · Pedido N° ${esc(p.pedido)}`:''}</div>`:''}
         </div>
         <div class="folio">
@@ -1254,12 +1263,16 @@ function ctRender(){
       </div>
       <div style="margin-bottom:20px">
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:0 30px">
-          <div class="ct-dato"><label>Cliente</label><div style="font-size:18px;font-weight:600;border-bottom:1px solid var(--ct-line);padding-bottom:4px;min-height:26px">${esc(p.cliente)||'—'}</div></div>
-          <div class="ct-dato"><label>Especificación</label><div style="font-size:18px;font-weight:600;border-bottom:1px solid var(--ct-line);padding-bottom:4px;min-height:26px">${esc(p.especificacion)||'—'}</div></div>
-          <div class="ct-dato"><label>Maquilador (quién lo cose)</label><div style="font-size:18px;font-weight:600;border-bottom:1px solid var(--ct-line);padding-bottom:4px;min-height:26px">${esc(p.maquilador)||'—'}</div></div>
-          <div class="ct-dato"><label>Tipo de tela</label><div style="font-size:18px;font-weight:600;border-bottom:1px solid var(--ct-line);padding-bottom:4px;min-height:26px">${esc(p.tela1)||'—'}</div></div>
-          <div class="ct-dato"><label>Color</label><div style="font-size:18px;font-weight:600;border-bottom:1px solid var(--ct-line);padding-bottom:4px;min-height:26px">${esc(p.color)||'—'}</div></div>
+          <div class="ct-dato"><label>Cliente</label><div class="ct-dato-val">${esc(p.cliente)||'—'}</div></div>
+          <div class="ct-dato"><label>Especificación</label><div class="ct-dato-val">${esc(p.especificacion)||'—'}</div></div>
+          <div class="ct-dato"><label>Maquilador (quién lo cose)</label><div class="ct-dato-val">${esc(p.maquilador)||'—'}</div></div>
+          <div class="ct-dato"><label>Tipo de tela</label><div class="ct-dato-val">${esc(p.tela1)||'—'}</div></div>
+          ${p.tela2?`<div class="ct-dato"><label>Tela 2</label><div class="ct-dato-val">${esc(p.tela2)}</div></div>`:''}
+          <div class="ct-dato"><label>Color</label><div class="ct-dato-val">${esc(p.color)||'—'}</div></div>
+          ${p.bies?`<div class="ct-dato"><label>Bies</label><div class="ct-dato-val">${esc(p.bies)}</div></div>`:''}
+          ${p.cuello?`<div class="ct-dato"><label>Cuello c/letras</label><div class="ct-dato-val">${esc(p.cuello)}</div></div>`:''}
         </div>
+        ${p.notas?`<div class="ct-dato" style="margin-top:10px;grid-column:1 / -1"><label>Notas</label><div class="ct-dato-val" style="background:#fffef5;padding:6px 10px;border-radius:6px;border:1px solid var(--ct-line);white-space:pre-wrap">${esc(p.notas)}</div></div>`:''}
       </div>
       <div class="ct-grp">Cantidades por talla — Números</div>
       ${ctTablaHoja(p,CT_NUM,false)}
