@@ -130,6 +130,26 @@
   .card-foot{margin-top:auto;display:flex;justify-content:space-between;align-items:center;
     padding:10px 14px;background:#f8fafc;border-top:1px solid var(--borde)}
   .total{font-size:13px;color:var(--gris)}
+  /* ==== Franja de estado (semaforo de produccion) ==== */
+  .estado-franja{display:flex;align-items:center;gap:10px;padding:8px 12px;border-top:1px solid var(--borde);background:#fbfbfd}
+  .estado-actual{flex:1;text-align:center;font-weight:800;color:#fff;padding:8px 10px;border-radius:6px;font-size:12px;letter-spacing:.08em;text-transform:uppercase}
+  .estado-actual.estado-sin_iniciar{background:#dc2626}
+  .estado-actual.estado-en_proceso{background:#f59e0b;color:#3a2506}
+  .estado-actual.estado-casi_listo{background:#1d4ed8}
+  .estado-actual.estado-terminado{background:#16a34a}
+  .estado-selector{display:flex;gap:4px}
+  .estado-selector button{width:24px;height:24px;border-radius:50%;border:2px solid #fff;box-shadow:0 0 0 1px var(--borde);cursor:pointer;padding:0;opacity:.55;transition:all .15s}
+  .estado-selector button:hover{opacity:1;transform:scale(1.15)}
+  .estado-selector button.activo{opacity:1;transform:scale(1.1);box-shadow:0 0 0 2px #333,0 2px 6px rgba(0,0,0,.3)}
+  .estado-selector button.e-rojo{background:#dc2626}
+  .estado-selector button.e-amarillo{background:#f59e0b}
+  .estado-selector button.e-azul{background:#1d4ed8}
+  .estado-selector button.e-verde{background:#16a34a}
+  @media print{
+    .estado-selector{display:none!important}
+    .estado-franja{padding:6px 10px;border-top:1px solid #999}
+    .estado-actual{padding:4px 8px;font-size:11px}
+  }
   .total b{font-size:20px;color:var(--azul);margin-left:4px}
   .del{background:none;border:0;color:#cbd5e1;cursor:pointer;font-size:12px}
   .del:hover{color:var(--rojo)}
@@ -402,6 +422,7 @@
 <nav class="tabs no-print">
   <button class="tab-btn active" id="tab-p" onclick="showView('pedidos')">🧵 Pedidos (Tarjetas)</button>
   <button class="tab-btn" id="tab-c" onclick="showView('cortes')">✂️ Cortes (Hojas)</button>
+  <a class="tab-btn" href="taller-nube.html" style="text-decoration:none;display:inline-flex;align-items:center;justify-content:center">💵 Taller (Pago a destajo)</a>
 </nav>
 
 <section id="view-pedidos" class="view active">
@@ -635,6 +656,7 @@ function normalize(arr){
       bies:it.bies||'', cuello:it.cuello||'', cuelloFoto:toPhoto(it.cuelloFoto), notas:it.notas||'',
       cliente:it.cliente||'', pedido:it.pedido||'', especificacion:it.especificacion||'',
       maquilador:it.maquilador||'', fecha:it.fecha||'', contraentrega:it.contraentrega||'',
+      estado:it.estado||'sin_iniciar',
       sizes};
   });
 }
@@ -792,6 +814,15 @@ function buildCard(it,i){
       <label class="psel no-print"><input type="checkbox" ${printSel.has(i)?'checked':''}
         onchange="togglePrint(${i},this.checked)"> Imprimir</label>
       <button class="del no-print" onclick="delCard(${i})" title="Mandar a la papelera">🗑</button>
+    </div>
+    <div class="estado-franja">
+      <div class="estado-actual estado-${it.estado||'sin_iniciar'}">${estadoLabel(it.estado)}</div>
+      <div class="estado-selector no-print">
+        <button class="e-rojo ${(it.estado||'sin_iniciar')==='sin_iniciar'?'activo':''}" title="Sin iniciar" onclick="setEstado(${i},'sin_iniciar')"></button>
+        <button class="e-amarillo ${it.estado==='en_proceso'?'activo':''}" title="En proceso" onclick="setEstado(${i},'en_proceso')"></button>
+        <button class="e-azul ${it.estado==='casi_listo'?'activo':''}" title="Casi listo" onclick="setEstado(${i},'casi_listo')"></button>
+        <button class="e-verde ${it.estado==='terminado'?'activo':''}" title="Terminado" onclick="setEstado(${i},'terminado')"></button>
+      </div>
     </div>`;
   // al pulsar la "✕" no abrir el selector de archivos
   el.querySelectorAll('.photo,.mini').forEach(p=>p.addEventListener('click',e=>{
@@ -804,6 +835,13 @@ function upd(i,field,val){
   if(ALL.includes(field)){ data[i].sizes[field]=val; updateTotals(i); }
   else { data[i][field]=val; }
   save();
+}
+function estadoLabel(e){
+  return ({sin_iniciar:'🔴 Sin iniciar', en_proceso:'🟡 En proceso', casi_listo:'🔵 Casi listo', terminado:'🟢 Terminado'})[e||'sin_iniciar'] || '🔴 Sin iniciar';
+}
+function setEstado(i, estado){
+  data[i].estado = estado;
+  save(); render();
 }
 function setTog(i,field,val){
   data[i][field] = (data[i][field]===val) ? '' : val;  // volver a pulsar = limpiar
@@ -1486,6 +1524,7 @@ function rowToLocal(r){
     bies: r.bies, cuello: r.cuello, notas: r.notas,
     cliente: r.cliente, pedido: r.pedido, especificacion: r.especificacion,
     maquilador: r.maquilador, fecha: r.fecha || '', contraentrega: r.contraentrega || '',
+    estado: r.estado || 'sin_iniciar',
     photos: r.photos || [], cuelloFoto: r.cuello_foto || toPhoto(''),
     sizes: r.sizes || {}
   }])[0];
@@ -1504,6 +1543,7 @@ function localToRow(p){
     cliente: p.cliente, pedido: p.pedido, especificacion: p.especificacion,
     maquilador: p.maquilador,
     fecha: p.fecha || null, contraentrega: p.contraentrega || null,
+    estado: p.estado || 'sin_iniciar',
     // En la BD solo guardamos rutas + metadatos; el src se reconstruye al cargar
     photos: (p.photos||[]).map(stripSrc),
     cuello_foto: stripSrc(p.cuelloFoto||{}),
@@ -1514,7 +1554,7 @@ function syncKey(p, inTrash){
   return JSON.stringify([
     p.no,p.desc,p.tela1,p.tela2,p.color,p.bies,p.cuello,
     p.cliente,p.pedido,p.especificacion,p.maquilador,p.fecha,p.contraentrega,
-    p.notas,p.sizes,p.photos,p.cuelloFoto, inTrash
+    p.notas,p.estado,p.sizes,p.photos,p.cuelloFoto, inTrash
   ]);
 }
 

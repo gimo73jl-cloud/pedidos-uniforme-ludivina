@@ -19,6 +19,8 @@ create table if not exists public.prendas (
   contraentrega date,
   sizes jsonb default '{}'::jsonb,
   photos jsonb default '[]'::jsonb,
+  estado text default 'sin_iniciar' check (estado in ('sin_iniciar','en_proceso','casi_listo','terminado')),
+  ops jsonb default '[]'::jsonb,
   in_trash boolean default false,
   created_at timestamptz default now(),
   updated_at timestamptz default now()
