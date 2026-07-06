@@ -887,9 +887,10 @@ function pintarOpsCaptura(){
   h+=`<div style="margin:8px 0 6px"><strong style="font-size:16px">${esc(ope.nombre)} · ${esc(prenda.nombre)}</strong></div>`;
   if(prenda.foto) h+=`<img src="${prenda.foto}" class="foto-grande" alt="${esc(prenda.nombre)}">`;
   h+='<h3>Escribe las piezas hechas en cada operación</h3>';
-  h+='<div class="grid-ops"><table><thead><tr><th>Operación</th><th class="num">Tarifa</th><th class="num" style="width:120px">Cantidad</th><th class="num">Subtotal</th></tr></thead><tbody>';
+  h+='<div class="grid-ops"><table><thead><tr><th>Operación</th><th class="num" style="width:120px">Tarifa $/pz</th><th class="num" style="width:120px">Cantidad</th><th class="num">Subtotal</th></tr></thead><tbody>';
   ops.forEach(o=>{
-    h+=`<tr class="op-row" data-nombre="${esc(o.nombre).toLowerCase()}"><td>${esc(o.nombre)}</td><td class="num">${pesos(o.tarifa)}</td>
+    h+=`<tr class="op-row" data-nombre="${esc(o.nombre).toLowerCase()}"><td>${esc(o.nombre)}</td>
+        <td class="num"><input type="number" min="0" step="0.01" class="op-tarifa-inline cap-tarifa" value="${o.tarifa}" data-op-id="${o.id}" data-orig="${o.tarifa}" onchange="guardarTarifaEnCaptura('${o.id}', this)" onkeydown="if(event.key==='Enter'){this.blur();}"></td>
         <td class="num"><input type="number" min="0" step="1" class="cap-cant" data-op="${o.id}" data-tarifa="${o.tarifa}" style="text-align:right" placeholder="0" oninput="recalcCaptura()"></td>
         <td class="num cap-sub" data-op="${o.id}">$0.00</td></tr>`;
   });
@@ -907,6 +908,39 @@ function filtrarOps(){
   document.querySelectorAll(".op-row").forEach(r=>{
     r.style.display = !q || r.dataset.nombre.includes(q) ? "" : "none";
   });
+}
+async function guardarTarifaEnCaptura(oid, input){
+  const nueva = parseFloat(input.value);
+  const p = db.prendas.find(x=>x.id === capPrenda.value);
+  const o = p && (p.ops||[]).find(x=>x.id === oid);
+  if(!o) return;
+  if(isNaN(nueva) || nueva < 0){
+    input.value = o.tarifa;
+    return alert('Tarifa inválida — se revirtió al valor anterior.');
+  }
+  if(nueva === parseFloat(o.tarifa)) return;
+  const original = o.tarifa;
+  o.tarifa = nueva;
+  input.classList.add('guardando');
+  input.dataset.orig = nueva;
+  const ok = await guardarPrendaOps(p);
+  input.classList.remove('guardando');
+  if(!ok){
+    o.tarifa = original;
+    input.value = original;
+    input.dataset.orig = original;
+    alert('⚠️ No se pudo guardar. Se revirtió.');
+    return;
+  }
+  input.classList.add('guardado');
+  setTimeout(()=>input.classList.remove('guardado'), 900);
+  // Actualizar el data-tarifa del input de cantidad para que el subtotal recalcule bien
+  const cantInput = document.querySelector('.cap-cant[data-op="'+oid+'"]');
+  if(cantInput){
+    cantInput.dataset.tarifa = nueva;
+    recalcCaptura();
+  }
+  toast('☁ Tarifa actualizada — $' + nueva.toFixed(2));
 }
 function recalcCaptura(){
   let total=0;
