@@ -88,6 +88,13 @@
   .preop-propagar{display:flex;align-items:center;gap:8px;margin-top:10px;padding:10px 12px;background:#f0f7ff;border:1px solid #cfe1f5;border-radius:6px;cursor:pointer}
   .preop-propagar input{width:auto;margin:0}
   .preop-propagar span{font-size:13px;color:var(--txt)}
+  /* Tarifa editable inline en cada operacion */
+  .op-tarifa-inline{width:90px;padding:5px 8px;border:1px solid var(--gris2);border-radius:5px;font-size:13px;text-align:right;font-variant-numeric:tabular-nums;font-family:inherit;background:#fff;transition:all .15s}
+  .op-tarifa-inline:hover{border-color:var(--azul2);background:#fafcff}
+  .op-tarifa-inline:focus{outline:none;border-color:var(--azul2);box-shadow:0 0 0 2px rgba(44,82,130,.15);background:#fff}
+  .op-tarifa-inline.guardando{background:#fffbea;border-color:#f6c46a}
+  .op-tarifa-inline.guardado{background:#e6f7ee;border-color:#68d391;animation:flashOk .8s ease-out}
+  @keyframes flashOk{0%{background:#68d391;color:#fff}100%{background:#e6f7ee;color:var(--txt)}}
   .tarjeta-resumen{background:linear-gradient(135deg,#2c5282,#1e3a5f);color:#fff;border-radius:10px;padding:16px 20px;margin-bottom:16px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;box-shadow:0 4px 14px rgba(30,58,95,.25)}
   .tarjeta-resumen .lbl{font-size:11px;text-transform:uppercase;letter-spacing:.06em;opacity:.85}
   .tarjeta-resumen .nm{font-size:18px;font-weight:700;text-transform:uppercase;margin-top:2px}
@@ -497,16 +504,44 @@ function pintarPrendaOps(){
     return;
   }
   const ops=[...p.ops].sort((a,b)=>(a.nombre||'').localeCompare(b.nombre||''));
-  let h='<table><thead><tr><th>Operación</th><th class="num">Tarifa</th><th></th></tr></thead><tbody>';
+  let h='<table><thead><tr><th>Operación</th><th class="num" style="width:120px">Tarifa $/pz</th><th style="width:100px"></th></tr></thead><tbody>';
   ops.forEach(o=>{
-    h+=`<tr><td>${esc(o.nombre)}</td><td class="num">${pesos(o.tarifa)}</td>
+    h+=`<tr><td>${esc(o.nombre)}</td>
+        <td class="num"><input type="number" min="0" step="0.01" class="op-tarifa-inline" value="${o.tarifa}" data-op-id="${o.id}" data-orig="${o.tarifa}" onchange="guardarTarifaInline('${o.id}', this)" onkeydown="if(event.key==='Enter'){this.blur();}"></td>
         <td class="num">
-          <button class="mini" onclick="editarPrendaOp('${o.id}')" title="Editar">✏️</button>
+          <button class="mini" onclick="editarPrendaOp('${o.id}')" title="Renombrar operación">✏️</button>
           <button class="mini borrar" onclick="borrarPrendaOp('${o.id}')" title="Borrar">🗑️</button>
         </td></tr>`;
   });
-  h+=`</tbody></table><p style="color:var(--suave);font-size:13px">${p.ops.length} operación(es) en esta prenda</p>`;
+  h+=`</tbody></table><p style="color:var(--suave);font-size:13px">${p.ops.length} operación(es) · <em>escribe el nuevo monto y presiona Enter o clic afuera para guardar</em></p>`;
   c.innerHTML=h;
+}
+async function guardarTarifaInline(oid, input){
+  const nueva = parseFloat(input.value);
+  const p = db.prendas.find(x => x.id === prendaEdit);
+  const o = p && (p.ops||[]).find(x => x.id === oid);
+  if(!o) return;
+  if(isNaN(nueva) || nueva < 0){
+    input.value = o.tarifa;
+    return alert('Tarifa inválida — se revirtió al valor anterior.');
+  }
+  if(nueva === parseFloat(o.tarifa)) return; // sin cambio
+  const original = o.tarifa;
+  o.tarifa = nueva;
+  input.classList.add('guardando');
+  input.dataset.orig = nueva;
+  const ok = await guardarPrendaOps(p);
+  input.classList.remove('guardando');
+  if(!ok){
+    o.tarifa = original;
+    input.value = original;
+    input.dataset.orig = original;
+    alert('⚠️ No se pudo guardar la tarifa nueva. Se revirtió.');
+    return;
+  }
+  input.classList.add('guardado');
+  setTimeout(()=>input.classList.remove('guardado'), 900);
+  toast('☁ Tarifa actualizada — $' + nueva.toFixed(2));
 }
 async function guardarPrendaOps(p){
   const {error} = await supa.from('prendas').update({ops: p.ops}).eq('id', p.id);
