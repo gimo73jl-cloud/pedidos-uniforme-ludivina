@@ -58,6 +58,36 @@
   .miniatura{width:54px;height:54px;object-fit:cover;border-radius:8px;border:1px solid var(--gris2);background:var(--gris);vertical-align:middle}
   .sin-foto{width:54px;height:54px;border-radius:8px;border:1px dashed var(--gris2);background:var(--gris);display:inline-flex;align-items:center;justify-content:center;font-size:22px;color:var(--suave)}
   .foto-grande{max-width:220px;max-height:220px;object-fit:contain;border:1px solid var(--gris2);border-radius:8px;display:block;margin-bottom:10px}
+  /* ==== Combobox de prendas (con thumbnail + numero) ==== */
+  .combo-wrap{position:relative}
+  .combo-btn{width:100%;padding:6px 10px;border:1px solid var(--gris2);border-radius:7px;background:#fff;font-size:14px;font-family:inherit;text-align:left;cursor:pointer;display:flex;align-items:center;justify-content:space-between;gap:8px;min-height:38px}
+  .combo-btn:hover{border-color:var(--azul2)}
+  .combo-btn.abierto{outline:none;border-color:var(--azul2);box-shadow:0 0 0 3px rgba(44,82,130,.12)}
+  .combo-btn .sel-in{flex:1;display:flex;align-items:center;gap:8px;min-width:0}
+  .combo-btn .sel-in img{width:30px;height:30px;border-radius:5px;object-fit:cover;flex-shrink:0}
+  .combo-btn .sel-in .sf{width:30px;height:30px;border-radius:5px;border:1px dashed var(--gris2);display:inline-flex;align-items:center;justify-content:center;font-size:16px;color:var(--suave);flex-shrink:0}
+  .combo-btn .sel-txt{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--txt)}
+  .combo-btn .sel-txt.placeholder{color:var(--suave)}
+  .combo-btn .combo-arrow{font-size:9px;color:var(--suave);flex-shrink:0}
+  .combo-panel{display:none;position:absolute;top:calc(100% + 4px);left:0;right:0;z-index:100;background:#fff;border:1px solid var(--gris2);border-radius:8px;box-shadow:0 8px 24px rgba(0,0,0,.15);max-height:420px;overflow:hidden;flex-direction:column}
+  .combo-panel.abierto{display:flex}
+  .combo-panel input{border:none;border-bottom:1px solid var(--gris2);border-radius:0;padding:10px 12px}
+  .combo-panel input:focus{border-color:var(--gris2);box-shadow:none}
+  .combo-list{overflow-y:auto;max-height:360px}
+  .combo-item{display:flex;align-items:center;gap:10px;padding:8px 12px;cursor:pointer;border-bottom:1px solid var(--gris)}
+  .combo-item:hover{background:#f0f4f8}
+  .combo-item.activo{background:#e0eaf5}
+  .combo-item img{width:44px;height:44px;border-radius:6px;object-fit:cover;border:1px solid var(--gris2);flex-shrink:0}
+  .combo-item .sf-big{width:44px;height:44px;border-radius:6px;border:1px dashed var(--gris2);background:var(--gris);display:inline-flex;align-items:center;justify-content:center;font-size:20px;color:var(--suave);flex-shrink:0}
+  .combo-item .info{flex:1;min-width:0}
+  .combo-item .info .no{font-size:11px;color:var(--suave);font-weight:700}
+  .combo-item .info .nombre{font-size:14px;color:var(--txt);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .combo-item.placeholder{font-style:italic;color:var(--suave);cursor:default}
+  .combo-item.placeholder:hover{background:transparent}
+  /* Checkbox de propagacion */
+  .preop-propagar{display:flex;align-items:center;gap:8px;margin-top:10px;padding:10px 12px;background:#f0f7ff;border:1px solid #cfe1f5;border-radius:6px;cursor:pointer}
+  .preop-propagar input{width:auto;margin:0}
+  .preop-propagar span{font-size:13px;color:var(--txt)}
   .tarjeta-resumen{background:linear-gradient(135deg,#2c5282,#1e3a5f);color:#fff;border-radius:10px;padding:16px 20px;margin-bottom:16px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;box-shadow:0 4px 14px rgba(30,58,95,.25)}
   .tarjeta-resumen .lbl{font-size:11px;text-transform:uppercase;letter-spacing:.06em;opacity:.85}
   .tarjeta-resumen .nm{font-size:18px;font-weight:700;text-transform:uppercase;margin-top:2px}
@@ -164,9 +194,17 @@
           <label>Operario</label>
           <select id="cap-operario"></select>
         </div>
-        <div>
+        <div class="combo-wrap">
           <label>Prenda</label>
-          <select id="cap-prenda"></select>
+          <button type="button" id="cap-prenda-trigger" class="combo-btn">
+            <span class="sel-in" id="cap-prenda-selected"><span class="sel-txt placeholder">— elige prenda —</span></span>
+            <span class="combo-arrow">▼</span>
+          </button>
+          <div id="cap-prenda-panel" class="combo-panel">
+            <input type="text" id="cap-prenda-search" placeholder="Buscar por número o nombre…" autocomplete="off">
+            <div id="cap-prenda-list" class="combo-list"></div>
+          </div>
+          <select id="cap-prenda" style="display:none"></select>
         </div>
         <div>
           <label>Buscar operación</label>
@@ -230,8 +268,12 @@
         <div style="max-width:160px"><label>Tarifa ($ por pieza)</label><input type="number" id="preop-tarifa" min="0" step="0.01" placeholder="0.00"></div>
         <div style="flex:0 0 auto"><button class="btn verde" id="preop-agregar">+ Agregar</button></div>
       </div>
+      <label class="preop-propagar" title="Se guardará en las prendas del mismo tipo que aún no la tengan, con la misma tarifa. Después puedes editar el monto en cada prenda si alguna lleva una modificación distinta.">
+        <input type="checkbox" id="preop-propagar" checked>
+        <span id="preop-propagar-lbl">✨ <strong>Aplicar también a las demás prendas del mismo tipo</strong> que aún no la tengan (con la misma tarifa) — podrás editar el monto individual después</span>
+      </label>
       <p style="font-size:13px;color:var(--suave);margin:8px 0 0">
-        💡 Tip: si esta prenda lleva las mismas operaciones que otra, usa el botón
+        💡 O si prefieres copiar TODAS las ops de otra prenda a la vez:
         <button class="btn gris" id="preop-copiar" style="padding:4px 10px;font-size:12px">📋 Copiar de otra prenda</button>
       </p>
       <h3>Operaciones registradas</h3>
@@ -413,11 +455,34 @@ function pintarPrendas(){
   h+='</tbody></table>';
   c.innerHTML=h;
 }
+function detectarTipo(nombre){
+  const primera = ((nombre||'').trim().split(/\s+/)[0] || '').toLowerCase();
+  return primera;
+}
+function tipoLabelPlural(tipo){
+  if(!tipo) return 'del mismo tipo';
+  // capitalizar primera letra
+  const cap = tipo.charAt(0).toUpperCase() + tipo.slice(1);
+  // Pluralizar simple (mayoría de casos): añadir 's'
+  const plural = cap.endsWith('s') ? cap : (cap + 's');
+  return plural;
+}
 function abrirPrenda(pid){
   prendaEdit=pid;
   const p=db.prendas.find(x=>x.id===pid);
   document.getElementById("pre-edit-nombre").textContent=p.nombre;
   document.getElementById("pre-edit-card").style.display="block";
+  // Actualizar etiqueta del checkbox con el tipo detectado
+  const tipo = detectarTipo(p.nombre);
+  const lbl = document.getElementById('preop-propagar-lbl');
+  if(lbl){
+    if(tipo){
+      const plural = tipoLabelPlural(tipo);
+      lbl.innerHTML = `✨ <strong>Aplicar también a las demás ${esc(plural)}</strong> que aún no la tengan (con la misma tarifa) — podrás editar el monto individual después`;
+    } else {
+      lbl.innerHTML = `✨ <strong>Aplicar también a las demás prendas del mismo tipo</strong> que aún no la tengan (con la misma tarifa) — podrás editar el monto individual después`;
+    }
+  }
   const fc=document.getElementById("pre-edit-foto");
   fc.innerHTML = p.foto ? `<img src="${p.foto}" class="foto-grande" alt="">` : '';
   pintarPrendaOps();
@@ -455,18 +520,75 @@ document.getElementById("preop-agregar").onclick=async ()=>{
   const t=parseFloat(document.getElementById("preop-tarifa").value);
   if(!n) return alert("Escribe el nombre de la operación.");
   if(isNaN(t)||t<0) return alert("Escribe una tarifa válida.");
-  const p=db.prendas.find(x=>x.id===prendaEdit);
-  if(!p.ops) p.ops=[];
+  const propagar = document.getElementById("preop-propagar").checked;
+  const btn = document.getElementById("preop-agregar");
+  const btnOrig = btn.textContent;
+  btn.disabled = true;
+  btn.textContent = 'Guardando…';
+
+  // 1) Agregar a la prenda actual
+  const p = db.prendas.find(x=>x.id===prendaEdit);
+  if(!p.ops) p.ops = [];
+  const nLower = n.toLowerCase().trim();
   p.ops.push({id:id(), nombre:n, tarifa:t});
-  const ok = await guardarPrendaOps(p);
-  if(ok){
-    document.getElementById("preop-nombre").value="";
-    document.getElementById("preop-tarifa").value="";
+  const prendasAActualizar = [p];
+  const propagadas = [];
+
+  // 2) Si se pidió, propagar a las demás DEL MISMO TIPO que aún no la tengan
+  const tipoActual = detectarTipo(p.nombre);
+  if(propagar){
+    db.prendas.forEach(other=>{
+      if(other.id === prendaEdit) return;
+      // Solo propagar si son del mismo tipo (primera palabra igual, case insensitive)
+      if(detectarTipo(other.nombre) !== tipoActual) return;
+      const yaTiene = (other.ops||[]).some(o => (o.nombre||'').toLowerCase().trim() === nLower);
+      if(!yaTiene){
+        if(!other.ops) other.ops = [];
+        other.ops.push({id:id(), nombre:n, tarifa:t});
+        prendasAActualizar.push(other);
+        propagadas.push(other.nombre);
+      }
+    });
+  }
+
+  // 3) Guardar en paralelo con Supabase
+  const results = await Promise.all(
+    prendasAActualizar.map(pr => supa.from('prendas').update({ops: pr.ops}).eq('id', pr.id))
+  );
+  const errores = [];
+  results.forEach((r,i)=>{
+    if(r.error){
+      // Deshacer localmente esta prenda para reflejar el estado real
+      const prf = prendasAActualizar[i];
+      prf.ops = (prf.ops||[]).filter(o => !(o.nombre === n && o.tarifa === t));
+      errores.push(prf.nombre + ': ' + r.error.message);
+    }
+  });
+
+  btn.disabled = false;
+  btn.textContent = btnOrig;
+
+  if(errores.length){
+    alert('⚠️ Se guardó en ' + (prendasAActualizar.length - errores.length) + ' prenda(s), pero falló en ' + errores.length + ':\n\n' + errores.slice(0,5).join('\n'));
     pintarPrendaOps();
     pintarPrendas();
-  } else {
-    p.ops.pop();
+    return;
   }
+
+  document.getElementById("preop-nombre").value="";
+  document.getElementById("preop-tarifa").value="";
+
+  const tipoNombre = tipoActual ? tipoLabelPlural(tipoActual) : 'prendas del mismo tipo';
+  if(propagar && propagadas.length){
+    toast('☁ Guardada en ' + prendasAActualizar.length + ' ' + tipoNombre.toLowerCase() + ' (esta + ' + propagadas.length + ' más)');
+  } else if(propagar && !propagadas.length){
+    toast('☁ Guardada solo aquí — las demás ' + tipoNombre.toLowerCase() + ' ya la tenían');
+  } else {
+    toast('☁ Guardada solo en esta prenda');
+  }
+
+  pintarPrendaOps();
+  pintarPrendas();
 };
 async function editarPrendaOp(oid){
   const p=db.prendas.find(x=>x.id===prendaEdit);
@@ -588,10 +710,95 @@ function refrescarCaptura(){
   capPrenda.innerHTML='<option value="">— elige prenda —</option>'+
     db.prendas.map(p=>`<option value="${p.id}">${esc(p.nombre)}</option>`).join("");
   capPrenda.value=prAnt;
+  actualizarComboVisual(prAnt);
   pintarOpsCaptura();
   pintarCapturaTabla();
   pintarResumenSemanal();
 }
+
+/* ============ COMBOBOX DE PRENDAS (con foto + numero) ============ */
+function inicializarComboPrenda(){
+  const trigger = document.getElementById('cap-prenda-trigger');
+  const panel   = document.getElementById('cap-prenda-panel');
+  const search  = document.getElementById('cap-prenda-search');
+  trigger.addEventListener('click', (e)=>{
+    e.stopPropagation();
+    const abriendo = !panel.classList.contains('abierto');
+    panel.classList.toggle('abierto', abriendo);
+    trigger.classList.toggle('abierto', abriendo);
+    if(abriendo){
+      search.value = '';
+      renderComboList('');
+      setTimeout(()=>search.focus(), 30);
+    }
+  });
+  search.addEventListener('input', ()=>renderComboList(search.value));
+  search.addEventListener('click', (e)=>e.stopPropagation());
+  document.addEventListener('click', (e)=>{
+    if(!panel.contains(e.target) && e.target !== trigger && !trigger.contains(e.target)){
+      panel.classList.remove('abierto');
+      trigger.classList.remove('abierto');
+    }
+  });
+  document.addEventListener('keydown', (e)=>{
+    if(e.key === 'Escape' && panel.classList.contains('abierto')){
+      panel.classList.remove('abierto');
+      trigger.classList.remove('abierto');
+    }
+  });
+}
+
+function renderComboList(q){
+  const list = document.getElementById('cap-prenda-list');
+  const query = (q||'').trim().toLowerCase();
+  const filtered = db.prendas.filter(p=>{
+    if(!query) return true;
+    return (p.nombre||'').toLowerCase().includes(query) || String(p.no||'').toLowerCase().includes(query);
+  });
+  if(!filtered.length){
+    list.innerHTML = '<div class="combo-item placeholder">Sin coincidencias</div>';
+    return;
+  }
+  const selectedId = capPrenda.value;
+  list.innerHTML = filtered.map(p=>{
+    const foto = p.foto
+      ? `<img src="${p.foto}" alt="">`
+      : `<span class="sf-big">👕</span>`;
+    return `<div class="combo-item ${p.id===selectedId?'activo':''}" onclick="seleccionarPrenda('${p.id}')">
+      ${foto}
+      <div class="info">
+        <div class="no">No. ${esc(p.no||'—')}</div>
+        <div class="nombre">${esc(p.nombre)}</div>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function actualizarComboVisual(pid){
+  const cont = document.getElementById('cap-prenda-selected');
+  if(!cont) return;
+  const p = db.prendas.find(x=>x.id===pid);
+  if(!p){
+    cont.innerHTML = '<span class="sel-txt placeholder">— elige prenda —</span>';
+    return;
+  }
+  const foto = p.foto
+    ? `<img src="${p.foto}" alt="">`
+    : `<span class="sf">👕</span>`;
+  cont.innerHTML = `${foto}<span class="sel-txt">No. ${esc(p.no||'—')} · ${esc(p.nombre)}</span>`;
+}
+
+function seleccionarPrenda(pid){
+  capPrenda.value = pid;
+  actualizarComboVisual(pid);
+  capPrenda.dispatchEvent(new Event('change'));
+  document.getElementById('cap-prenda-panel').classList.remove('abierto');
+  document.getElementById('cap-prenda-trigger').classList.remove('abierto');
+}
+
+// Inicializar el combobox una sola vez cuando carga
+document.addEventListener('DOMContentLoaded', inicializarComboPrenda);
+if(document.readyState !== 'loading') inicializarComboPrenda();
 capOperario.addEventListener("change", ()=>{ pintarOpsCaptura(); pintarCapturaTabla(); pintarResumenSemanal(); });
 capPrenda.addEventListener("change", pintarOpsCaptura);
 capFecha.onchange=()=>{ pintarCapturaTabla(); pintarResumenSemanal(); };
