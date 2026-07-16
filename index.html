@@ -137,6 +137,8 @@
   .estado-actual.estado-en_proceso{background:#f59e0b;color:#3a2506}
   .estado-actual.estado-casi_listo{background:#1d4ed8}
   .estado-actual.estado-terminado{background:#16a34a}
+  .estado-actual.estado-enviado{background:#023047}
+  .estado-actual.estado-recibido{background:#d4a373;color:#3a2506}
   .estado-selector{display:flex;gap:4px}
   .estado-selector button{width:24px;height:24px;border-radius:50%;border:2px solid #fff;box-shadow:0 0 0 1px var(--borde);cursor:pointer;padding:0;opacity:.55;transition:all .15s}
   .estado-selector button:hover{opacity:1;transform:scale(1.15)}
@@ -145,6 +147,8 @@
   .estado-selector button.e-amarillo{background:#f59e0b}
   .estado-selector button.e-azul{background:#1d4ed8}
   .estado-selector button.e-verde{background:#16a34a}
+  .estado-selector button.e-navy{background:#023047}
+  .estado-selector button.e-tan{background:#d4a373}
   @media print{
     .estado-selector{display:none!important}
     .estado-franja{padding:6px 10px;border-top:1px solid #999}
@@ -822,6 +826,8 @@ function buildCard(it,i){
         <button class="e-amarillo ${it.estado==='en_proceso'?'activo':''}" title="En proceso" onclick="setEstado(${i},'en_proceso')"></button>
         <button class="e-azul ${it.estado==='casi_listo'?'activo':''}" title="Casi listo" onclick="setEstado(${i},'casi_listo')"></button>
         <button class="e-verde ${it.estado==='terminado'?'activo':''}" title="Terminado" onclick="setEstado(${i},'terminado')"></button>
+        <button class="e-navy ${it.estado==='enviado'?'activo':''}" title="Enviado" onclick="setEstado(${i},'enviado')"></button>
+        <button class="e-tan ${it.estado==='recibido'?'activo':''}" title="Recibido" onclick="setEstado(${i},'recibido')"></button>
       </div>
     </div>`;
   // al pulsar la "✕" no abrir el selector de archivos
@@ -837,7 +843,7 @@ function upd(i,field,val){
   save();
 }
 function estadoLabel(e){
-  return ({sin_iniciar:'🔴 Sin iniciar', en_proceso:'🟡 En proceso', casi_listo:'🔵 Casi listo', terminado:'🟢 Terminado'})[e||'sin_iniciar'] || '🔴 Sin iniciar';
+  return ({sin_iniciar:'🔴 Sin iniciar', en_proceso:'🟡 En proceso', casi_listo:'🔵 Casi listo', terminado:'🟢 Terminado', enviado:'🟦 Enviado', recibido:'🟫 Recibido'})[e||'sin_iniciar'] || '🔴 Sin iniciar';
 }
 function setEstado(i, estado){
   data[i].estado = estado;
