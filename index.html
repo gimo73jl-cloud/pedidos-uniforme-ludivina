@@ -175,6 +175,7 @@
     font-family:inherit;display:inline-flex;align-items:center;gap:6px}
   .tab-btn:hover{background:rgba(255,255,255,.20);color:#fff}
   .tab-btn.active{background:var(--bg);color:var(--azul);box-shadow:0 -2px 6px rgba(0,0,0,.2)}
+  .tab-badge{display:inline-flex;align-items:center;justify-content:center;min-width:20px;height:20px;padding:0 6px;margin-left:6px;background:#d4a373;color:#3a2506;border-radius:10px;font-size:12px;font-weight:700}
   .view{display:none}
   .view.active{display:block}
   /* ---- Vista Cortes — encabezado + formulario + toolbar (igual al original) ---- */
@@ -426,6 +427,7 @@
 <nav class="tabs no-print">
   <button class="tab-btn active" id="tab-p" onclick="showView('pedidos')">🧵 Pedidos (Tarjetas)</button>
   <button class="tab-btn" id="tab-c" onclick="showView('cortes')">✂️ Cortes (Hojas)</button>
+  <button class="tab-btn" id="tab-a" onclick="showView('archivo')">📦 Enviados / Recibidos <span id="archivoCount" class="tab-badge" style="display:none">0</span></button>
   <a class="tab-btn" href="taller-nube.html" style="text-decoration:none;display:inline-flex;align-items:center;justify-content:center">💵 Taller (Pago a destajo)</a>
 </nav>
 
@@ -537,6 +539,31 @@
     <!-- TARJETAS HOJA CARTA -->
     <div id="ct-list" class="ct-wrap"></div>
   </div>
+</section>
+
+<section id="view-archivo" class="view">
+<header class="no-print">
+  <h1>📦 Enviados / Recibidos <small>Pedidos que ya salieron del taller · fuera de la vista principal</small></h1>
+  <div class="toolbar">
+    <input id="searchArchivo" class="search" placeholder="🔍 Buscar en archivados por número o descripción...">
+    <button class="btn ghost" onclick="doPrint()">🖨️ Imprimir / PDF</button>
+    <div class="stats">
+      <span>Enviados<b id="stEnviados">0</b></span>
+      <span>Recibidos<b id="stRecibidos">0</b></span>
+    </div>
+  </div>
+  <p style="color:var(--gris);font-size:13px;margin:4px 2px 0">
+    💡 Para regresar una prenda a la vista principal, cambia su color de estado (rojo, amarillo, azul o verde) en la franja de abajo de la tarjeta.
+  </p>
+</header>
+<div class="wrap">
+  <div class="print-head">
+    <h2>Pedidos enviados / recibidos</h2>
+    <div id="printDateArchivo"></div>
+  </div>
+  <div id="gridArchivo" class="grid"></div>
+  <div id="emptyArchivo" class="empty" style="display:none">No hay pedidos enviados ni recibidos todavía. Cuando marques una tarjeta como 🟦 Enviado o 🟫 Recibido, aparecerá aquí.</div>
+</div>
 </section>
 
 <div id="editor" class="ed-bg">
@@ -713,22 +740,53 @@ window.addEventListener('afterprint',()=>{
   document.querySelectorAll('.hide-print').forEach(c=>c.classList.remove('hide-print'));
 });
 
+// Una prenda "archivada" es la que ya fue enviada o recibida (sale de la vista principal)
+function esArchivada(it){ return it.estado==='enviado' || it.estado==='recibido'; }
+
 function render(){
   const q = (document.getElementById('search').value||'').toLowerCase();
   const grid = document.getElementById('grid');
   grid.innerHTML='';
-  let shown=0, pieces=0;
+  let activas=0, pieces=0;
   data.forEach((it,i)=>{
+    if(esArchivada(it)) return;              // no mostrar enviados/recibidos aquí
+    activas++;
     pieces += cardTotal(it);
     if(q && !((it.no+' '+it.desc).toLowerCase().includes(q))) return;
-    shown++;
     grid.appendChild(buildCard(it,i));
   });
-  document.getElementById('empty').style.display = data.length? 'none':'block';
-  document.getElementById('stCount').textContent = data.length;
+  document.getElementById('empty').style.display = activas? 'none':'block';
+  document.getElementById('stCount').textContent = activas;
   document.getElementById('stTotal').textContent = pieces;
   updatePrintBtn(); updateTrashBtn();
+  updateArchivoCount();
   document.getElementById('printDate').textContent = new Date().toLocaleDateString('es-MX',{year:'numeric',month:'long',day:'numeric'});
+}
+
+function renderArchivo(){
+  const q = (document.getElementById('searchArchivo').value||'').toLowerCase();
+  const grid = document.getElementById('gridArchivo');
+  grid.innerHTML='';
+  let total=0, enviados=0, recibidos=0;
+  data.forEach((it,i)=>{
+    if(!esArchivada(it)) return;
+    total++;
+    if(it.estado==='enviado') enviados++; else recibidos++;
+    if(q && !((it.no+' '+it.desc).toLowerCase().includes(q))) return;
+    grid.appendChild(buildCard(it,i));
+  });
+  document.getElementById('emptyArchivo').style.display = total? 'none':'block';
+  document.getElementById('stEnviados').textContent = enviados;
+  document.getElementById('stRecibidos').textContent = recibidos;
+  document.getElementById('printDateArchivo').textContent = new Date().toLocaleDateString('es-MX',{year:'numeric',month:'long',day:'numeric'});
+}
+
+function updateArchivoCount(){
+  const n = data.filter(esArchivada).length;
+  const badge = document.getElementById('archivoCount');
+  if(!badge) return;
+  badge.textContent = n;
+  badge.style.display = n ? 'inline-flex' : 'none';
 }
 
 function sizeGroup(it,i,keys,cls,color,title){
@@ -1505,13 +1563,25 @@ function showView(name){
   document.getElementById('view-'+name).classList.add('active');
   document.getElementById('tab-p').classList.toggle('active', name==='pedidos');
   document.getElementById('tab-c').classList.toggle('active', name==='cortes');
+  document.getElementById('tab-a').classList.toggle('active', name==='archivo');
   if(name==='cortes') ctRender();
+  else if(name==='archivo') renderArchivo();
   else _origRender();
 }
 
-// Hook: refrescar Cortes si está visible cuando Pedidos se re-renderiza
+// Hook: refrescar Cortes/Archivo si están visibles cuando Pedidos se re-renderiza
 const _origRender = render;
-render = function(){ _origRender(); if(document.getElementById('view-cortes').classList.contains('active')) ctRender(); };
+render = function(){
+  _origRender();
+  if(document.getElementById('view-cortes').classList.contains('active')) ctRender();
+  if(document.getElementById('view-archivo').classList.contains('active')) renderArchivo();
+};
+
+// Buscador dentro de la pestaña de archivados
+(function(){
+  const sa = document.getElementById('searchArchivo');
+  if(sa) sa.addEventListener('input', renderArchivo);
+})();
 
 ctBuildSizeInputs();
 render();
